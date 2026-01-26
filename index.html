@@ -28,6 +28,13 @@
                 opacity: 0;
             }
         }
+        .animate-fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
     </style>
 </head>
 <body class="bg-slate-900 text-white font-sans h-screen flex flex-col overflow-hidden">
@@ -54,6 +61,12 @@
     <!-- Main Content -->
     <main class="flex-1 container mx-auto p-6 flex flex-col items-center justify-center relative">
         
+        <!-- Toast Notification (Top Right) -->
+        <div id="toast" class="hidden absolute top-4 right-4 bg-yellow-600 text-white px-4 py-3 rounded shadow-lg z-50 flex items-center animate-fade-in">
+            <i class="fa-solid fa-triangle-exclamation mr-2"></i>
+            <span id="toast-msg">Uyarı mesajı</span>
+        </div>
+
         <!-- Countdown Overlay -->
         <div id="countdown-overlay" class="hidden absolute inset-0 bg-slate-900/90 z-50 flex items-center justify-center">
             <div class="text-9xl font-bold text-white countdown-anim" id="countdown-text">3</div>
@@ -160,13 +173,34 @@
                 </div>
             </div>
             
-            <div class="mt-6 flex flex-col md:flex-row gap-4 justify-center items-center">
-                <button id="download-btn" class="w-full md:w-auto bg-green-600 hover:bg-green-500 text-white font-bold py-3 px-8 rounded-lg shadow-lg flex items-center justify-center gap-2 transition-transform hover:-translate-y-1">
-                    <i class="fa-solid fa-download"></i> Videoyu İndir (.webm)
-                </button>
-                <button id="new-record-btn" class="w-full md:w-auto bg-slate-700 hover:bg-slate-600 text-white font-medium py-3 px-8 rounded-lg border border-slate-600 flex items-center justify-center gap-2">
-                    <i class="fa-solid fa-rotate-left"></i> Yeni Kayıt
-                </button>
+            <!-- Download Options -->
+            <div class="mt-6 flex flex-col items-center">
+                <h3 class="text-sm uppercase tracking-wider text-slate-400 font-bold mb-3">İndirme Formatını Seçin</h3>
+                <div class="flex flex-col md:flex-row gap-4 w-full md:w-auto">
+                    <!-- MP4 Button -->
+                    <button id="download-mp4" class="w-full md:w-64 bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-6 rounded-lg shadow-lg flex items-center justify-between gap-3 transition-transform hover:-translate-y-1 group">
+                        <div class="flex items-center gap-2">
+                            <i class="fa-solid fa-film"></i>
+                            <span>MP4 Olarak İndir</span>
+                        </div>
+                        <span class="text-xs bg-blue-700 px-2 py-1 rounded group-hover:bg-blue-600">Önerilen</span>
+                    </button>
+                    
+                    <!-- WebM Button -->
+                    <button id="download-webm" class="w-full md:w-64 bg-slate-700 hover:bg-slate-600 text-white font-medium py-3 px-6 rounded-lg border border-slate-600 flex items-center justify-between gap-3 transition-colors">
+                        <div class="flex items-center gap-2">
+                            <i class="fa-brands fa-chrome"></i>
+                            <span>WebM Olarak İndir</span>
+                        </div>
+                        <span class="text-xs text-slate-400">Web</span>
+                    </button>
+                    
+                    <!-- New Record -->
+                    <button id="new-record-btn" class="w-full md:w-auto bg-transparent hover:bg-slate-800 text-slate-300 font-medium py-3 px-4 rounded-lg border border-slate-700 flex items-center justify-center gap-2" title="Yeni Kayıt">
+                        <i class="fa-solid fa-rotate-left"></i>
+                    </button>
+                </div>
+                <p class="mt-2 text-xs text-slate-500 italic">Not: Bazı tarayıcılarda MP4 seçseniz bile altyapı gereği WebM kaydedilebilir, ancak uzantı uyumlu hale getirilir.</p>
             </div>
         </div>
 
@@ -190,13 +224,18 @@
         const recordingStatus = document.getElementById('recording-status');
         const previewPanel = document.getElementById('preview-panel');
         const videoPreview = document.getElementById('video-preview');
-        const downloadBtn = document.getElementById('download-btn');
         const newRecordBtn = document.getElementById('new-record-btn');
         const timerDisplay = document.getElementById('timer');
         const recDot = document.getElementById('rec-dot');
         const visualizerBars = document.querySelectorAll('.mic-bar');
         const countdownOverlay = document.getElementById('countdown-overlay');
         const countdownText = document.getElementById('countdown-text');
+        const toast = document.getElementById('toast');
+        const toastMsg = document.getElementById('toast-msg');
+        
+        // Download Buttons
+        const downloadMp4Btn = document.getElementById('download-mp4');
+        const downloadWebmBtn = document.getElementById('download-webm');
 
         // Canvas Composition Elements
         const srcScreen = document.getElementById('src-video-screen');
@@ -214,7 +253,16 @@
         let displayStream; // Screen capture stream
         let userStream; // Camera/Mic stream
         let audioContext;
-        let mixerInterval;
+        let recordedBlobUrl = null;
+
+        // --- Helper: Toast Notification ---
+        function showToast(msg) {
+            toastMsg.innerText = msg;
+            toast.classList.remove('hidden');
+            setTimeout(() => {
+                toast.classList.add('hidden');
+            }, 4000);
+        }
 
         // --- Visualizer Animation (Fake Idle) ---
         setInterval(() => {
@@ -242,6 +290,7 @@
             // 2. Setup Audio & Camera
             const useMic = micToggle.checked;
             const useCam = camToggle.checked;
+            let activeUseCam = useCam;
 
             try {
                 if (useMic || useCam) {
@@ -251,7 +300,22 @@
                     });
                 }
             } catch (err) {
-                alert("Kamera/Mikrofon izni verilmedi. Sadece ekran kaydedilecek.");
+                console.error("Medya aygıtı hatası:", err);
+                // HATA YÖNETİMİ: Kamera/Mikrofon açılamazsa sadece ekranla devam et
+                if (useCam) {
+                    showToast("Kameraya erişilemedi! Sadece ekran kaydedilecek.");
+                    activeUseCam = false;
+                    // Eğer sadece mikrofon hatasıysa ve video yoksa userStream null olabilir, dikkat.
+                    // Burada basitleştirilmiş fallback yapıyoruz.
+                } else if (useMic) {
+                    showToast("Mikrofona erişilemedi! Sadece sistem sesi kaydedilecek.");
+                }
+            }
+
+            // Check if userStream actually has video tracks (Double Check)
+            if (activeUseCam && userStream && userStream.getVideoTracks().length === 0) {
+                 showToast("Kamera bulunamadı, sadece ekran kaydedilecek.");
+                 activeUseCam = false;
             }
 
             // 3. Start Countdown
@@ -268,8 +332,8 @@
                 } else {
                     clearInterval(countInt);
                     countdownOverlay.classList.add('hidden');
-                    // Begin Recording
-                    initRecording(useCam); 
+                    // Begin Recording with validated cam flag
+                    initRecording(activeUseCam); 
                 }
             }, 1000);
         });
@@ -289,7 +353,7 @@
                 sysSource.connect(sysGain).connect(destNode);
             }
 
-            // Add Mic Audio
+            // Add Mic Audio (only if userStream exists and has audio)
             if (userStream && userStream.getAudioTracks().length > 0) {
                 const micSource = audioContext.createMediaStreamSource(userStream);
                 const micGain = audioContext.createGain();
@@ -305,19 +369,25 @@
                 srcScreen.srcObject = displayStream;
                 srcCam.srcObject = userStream;
                 
-                // Wait for video metadata to set canvas size
-                await srcScreen.play();
-                await srcCam.play();
+                try {
+                    // Wait for video metadata to set canvas size
+                    await srcScreen.play();
+                    await srcCam.play();
 
-                canvas.width = srcScreen.videoWidth || 1920;
-                canvas.height = srcScreen.videoHeight || 1080;
+                    canvas.width = srcScreen.videoWidth || 1920;
+                    canvas.height = srcScreen.videoHeight || 1080;
 
-                // Start Drawing Loop
-                drawCompositor();
-                
-                // Get stream from canvas
-                const canvasStream = canvas.captureStream(60);
-                videoTrack = canvasStream.getVideoTracks()[0];
+                    // Start Drawing Loop
+                    drawCompositor();
+                    
+                    // Get stream from canvas
+                    const canvasStream = canvas.captureStream(60);
+                    videoTrack = canvasStream.getVideoTracks()[0];
+                } catch(e) {
+                    // Fallback if play fails
+                    console.error("Canvas oynatma hatası", e);
+                    videoTrack = displayStream.getVideoTracks()[0];
+                }
             } else {
                 // DIRECT MODE (Just Screen)
                 videoTrack = displayStream.getVideoTracks()[0];
@@ -332,9 +402,15 @@
             finalStream = new MediaStream(tracks);
 
             // Initialize MediaRecorder
-            // Try best codec
-            let mimeType = 'video/webm;codecs=vp9';
-            if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm';
+            // Codec Seçimi: Öncelik MP4
+            let mimeType = 'video/mp4';
+            if (!MediaRecorder.isTypeSupported(mimeType)) {
+                // MP4 desteklenmiyorsa (örn. Firefox) WebM dene
+                mimeType = 'video/webm;codecs=vp9';
+                if (!MediaRecorder.isTypeSupported(mimeType)) {
+                    mimeType = 'video/webm';
+                }
+            }
 
             mediaRecorder = new MediaRecorder(finalStream, {
                 mimeType: mimeType,
@@ -357,7 +433,7 @@
             recordingStatus.classList.remove('hidden');
         }
 
-        // --- Canvas Compositor (The Magic) ---
+        // --- Canvas Compositor ---
         function drawCompositor() {
             if (!mediaRecorder || mediaRecorder.state === 'inactive') return;
 
@@ -372,20 +448,15 @@
                 const camY = canvas.height - camSize - padding;
 
                 ctx.save();
-                // Create Circle Path
                 ctx.beginPath();
                 ctx.arc(camX + camSize/2, camY + camSize/2, camSize/2, 0, Math.PI * 2);
                 ctx.closePath();
-                ctx.clip(); // Clip everything to circle
-
-                // Draw Camera
+                ctx.clip(); 
                 ctx.drawImage(srcCam, camX, camY, camSize, camSize);
                 
-                // Add Border
                 ctx.strokeStyle = "white";
                 ctx.lineWidth = 5;
                 ctx.stroke();
-                
                 ctx.restore();
             }
 
@@ -426,21 +497,33 @@
             if(finalStream) finalStream.getTracks().forEach(t => t.stop());
             if(audioContext) audioContext.close();
 
-            const blob = new Blob(recordedChunks, { type: 'video/webm' });
-            const url = URL.createObjectURL(blob);
+            // Blob Oluştur
+            const blob = new Blob(recordedChunks, { type: mediaRecorder.mimeType });
+            recordedBlobUrl = URL.createObjectURL(blob);
             
-            videoPreview.src = url;
+            videoPreview.src = recordedBlobUrl;
             recordingStatus.classList.add('hidden');
             previewPanel.classList.remove('hidden');
-
-            downloadBtn.onclick = () => {
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `RecMaster_${new Date().getTime()}.webm`;
-                document.body.appendChild(a);
-                a.click();
-            };
         }
+
+        // --- Download Handlers ---
+        function downloadVideo(format) {
+            if (!recordedBlobUrl) return;
+
+            const a = document.createElement('a');
+            a.href = recordedBlobUrl;
+            
+            // Dosya adı ve uzantı
+            const dateStr = new Date().toISOString().slice(0,19).replace('T','-').replace(/:/g,'');
+            a.download = `RecMaster_${dateStr}.${format}`;
+            
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+
+        downloadMp4Btn.addEventListener('click', () => downloadVideo('mp4'));
+        downloadWebmBtn.addEventListener('click', () => downloadVideo('webm'));
 
         function startTimer() {
             totalSeconds = 0;
