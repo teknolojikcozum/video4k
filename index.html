@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RecMaster Ultimate: Facecam & Ekran Kaydedici</title>
+    <title>RecMaster Studio: Kayıt & Düzenleme</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -15,532 +15,759 @@
             70% { box-shadow: 0 0 0 15px rgba(239, 68, 68, 0); }
             100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
         }
-        .mic-bar {
-            transition: height 0.1s ease;
-        }
-        /* Countdown Animation */
-        .countdown-anim {
-            animation: ping 1s cubic-bezier(0, 0, 0.2, 1) infinite;
-        }
+        .mic-bar { transition: height 0.1s ease; }
+        .countdown-anim { animation: ping 1s cubic-bezier(0, 0, 0.2, 1) infinite; }
         @keyframes ping {
-            75%, 100% {
-                transform: scale(2);
-                opacity: 0;
-            }
+            75%, 100% { transform: scale(2); opacity: 0; }
         }
-        .animate-fade-in {
-            animation: fadeIn 0.5s ease-in;
-        }
+        .animate-fade-in { animation: fadeIn 0.5s ease-in; }
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
         }
+        /* Timeline Styles */
+        .timeline-track {
+            background-image: repeating-linear-gradient(45deg, #374151 25%, transparent 25%, transparent 75%, #374151 75%, #374151), repeating-linear-gradient(45deg, #374151 25%, #1f2937 25%, #1f2937 75%, #374151 75%, #374151);
+            background-position: 0 0, 10px 10px;
+            background-size: 20px 20px;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 20px;
+            width: 5px;
+            background: #ef4444;
+            margin-top: -8px;
+            cursor: pointer;
+            border-radius: 2px;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #4b5563;
+            border-radius: 2px;
+        }
+        .layer-item.active {
+            border-left: 4px solid #3b82f6;
+            background-color: #1e293b;
+        }
     </style>
 </head>
-<body class="bg-slate-900 text-white font-sans h-screen flex flex-col overflow-hidden">
+<body class="bg-slate-950 text-white font-sans h-screen flex flex-col overflow-hidden">
 
     <!-- Header -->
-    <header class="bg-slate-800 border-b border-slate-700 p-4 z-20">
+    <header class="bg-slate-900 border-b border-slate-800 p-3 z-20 shrink-0">
         <div class="container mx-auto flex justify-between items-center">
             <div class="flex items-center gap-3">
-                <div class="w-10 h-10 bg-gradient-to-br from-red-600 to-purple-600 rounded-lg flex items-center justify-center shadow-lg shadow-purple-500/20">
-                    <i class="fa-solid fa-video text-white text-xl"></i>
+                <div class="w-8 h-8 bg-gradient-to-br from-red-600 to-purple-600 rounded-lg flex items-center justify-center shadow-lg shadow-purple-500/20">
+                    <i class="fa-solid fa-film text-white text-sm"></i>
                 </div>
                 <div>
-                    <h1 class="font-bold text-xl tracking-wide">RecMaster <span class="text-purple-400">Ultimate</span></h1>
-                    <p class="text-xs text-slate-400">Facecam + Ekran + Ses</p>
+                    <h1 class="font-bold text-lg tracking-wide">RecMaster <span class="text-purple-400">Studio</span></h1>
                 </div>
             </div>
-            <div class="hidden md:flex gap-4 text-sm text-slate-400">
-                <span class="flex items-center"><i class="fa-solid fa-infinity mr-2 text-blue-500"></i> Sınırsız</span>
-                <span class="flex items-center"><i class="fa-solid fa-circle-check mr-2 text-green-500"></i> 1080p/4K</span>
+            <div class="flex gap-4 text-xs text-slate-400">
+                <span id="mode-indicator" class="bg-slate-800 px-2 py-1 rounded border border-slate-700">Kayıt Modu</span>
             </div>
         </div>
     </header>
 
     <!-- Main Content -->
-    <main class="flex-1 container mx-auto p-6 flex flex-col items-center justify-center relative">
+    <main class="flex-1 flex flex-col relative overflow-hidden">
         
-        <!-- Toast Notification (Top Right) -->
+        <!-- Toast Notification -->
         <div id="toast" class="hidden absolute top-4 right-4 bg-yellow-600 text-white px-4 py-3 rounded shadow-lg z-50 flex items-center animate-fade-in">
             <i class="fa-solid fa-triangle-exclamation mr-2"></i>
             <span id="toast-msg">Uyarı mesajı</span>
         </div>
 
         <!-- Countdown Overlay -->
-        <div id="countdown-overlay" class="hidden absolute inset-0 bg-slate-900/90 z-50 flex items-center justify-center">
+        <div id="countdown-overlay" class="hidden absolute inset-0 bg-slate-950/95 z-50 flex items-center justify-center">
             <div class="text-9xl font-bold text-white countdown-anim" id="countdown-text">3</div>
         </div>
 
         <!-- Recording Status Bar (Floating) -->
-        <div id="recording-status" class="hidden absolute top-6 left-1/2 transform -translate-x-1/2 bg-slate-800/90 backdrop-blur border border-slate-600 px-6 py-3 rounded-full flex items-center gap-6 shadow-2xl z-40 transition-all">
+        <div id="recording-status" class="hidden absolute top-6 left-1/2 transform -translate-x-1/2 bg-slate-900/90 backdrop-blur border border-slate-700 px-6 py-3 rounded-full flex items-center gap-6 shadow-2xl z-40 transition-all">
             <div class="flex items-center gap-3">
                 <div class="w-3 h-3 bg-red-500 rounded-full recording-pulse" id="rec-dot"></div>
                 <span class="font-mono text-xl w-24" id="timer">00:00:00</span>
             </div>
-            
-            <div class="h-8 w-px bg-slate-600"></div>
-
+            <div class="h-8 w-px bg-slate-700"></div>
             <div class="flex gap-2">
-                <button id="pause-btn" class="w-10 h-10 flex items-center justify-center bg-slate-700 hover:bg-slate-600 text-yellow-400 rounded-full transition-colors" title="Duraklat">
+                <button id="pause-btn" class="w-10 h-10 flex items-center justify-center bg-slate-800 hover:bg-slate-700 text-yellow-400 rounded-full transition-colors">
                     <i class="fa-solid fa-pause" id="pause-icon"></i>
                 </button>
-                <button id="stop-btn-top" class="w-10 h-10 flex items-center justify-center bg-red-600 hover:bg-red-700 text-white rounded-full transition-colors shadow-lg shadow-red-500/30" title="Bitir">
+                <button id="stop-btn-top" class="w-10 h-10 flex items-center justify-center bg-red-600 hover:bg-red-700 text-white rounded-full transition-colors shadow-lg shadow-red-500/30">
                     <i class="fa-solid fa-stop"></i>
                 </button>
             </div>
         </div>
 
-        <!-- Setup Panel -->
-        <div id="setup-panel" class="w-full max-w-3xl bg-slate-800 rounded-2xl p-8 shadow-2xl border border-slate-700 text-center relative overflow-hidden">
-            <!-- Decorative Background Blob -->
-            <div class="absolute -top-20 -right-20 w-64 h-64 bg-purple-600/10 rounded-full blur-3xl"></div>
-            <div class="absolute -bottom-20 -left-20 w-64 h-64 bg-red-600/10 rounded-full blur-3xl"></div>
-            
-            <h2 class="text-3xl font-bold mb-2 relative z-10">Stüdyonu Hazırla</h2>
-            <p class="text-slate-400 mb-8 relative z-10">Oyun, eğitim veya sunum için profesyonel kayıt.</p>
-
-            <!-- Settings Grid -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8 relative z-10">
+        <!-- VIEW 1: Setup Panel -->
+        <div id="setup-panel" class="flex-1 flex flex-col items-center justify-center p-6">
+            <div class="w-full max-w-3xl bg-slate-900 rounded-2xl p-8 shadow-2xl border border-slate-800 text-center relative overflow-hidden">
+                <div class="absolute -top-20 -right-20 w-64 h-64 bg-purple-600/10 rounded-full blur-3xl"></div>
+                <div class="absolute -bottom-20 -left-20 w-64 h-64 bg-red-600/10 rounded-full blur-3xl"></div>
                 
-                <!-- Microphone Toggle -->
-                <label class="cursor-pointer bg-slate-700/50 hover:bg-slate-700 border border-slate-600 rounded-xl p-4 flex items-center justify-between transition-all group select-none">
-                    <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 rounded-full bg-slate-600 flex items-center justify-center group-hover:bg-slate-500 transition-colors">
-                            <i class="fa-solid fa-microphone text-lg text-blue-400"></i>
-                        </div>
-                        <div class="text-left">
-                            <div class="font-semibold">Mikrofon</div>
-                            <div class="text-xs text-slate-400">Sesli anlatım</div>
-                        </div>
-                    </div>
-                    <div class="relative">
-                        <input type="checkbox" id="mic-toggle" class="sr-only peer">
-                        <div class="w-11 h-6 bg-slate-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-500"></div>
-                    </div>
-                </label>
+                <h2 class="text-3xl font-bold mb-2 relative z-10">Stüdyonu Hazırla</h2>
+                <p class="text-slate-400 mb-8 relative z-10">Kayıt yapın, ardından dahili editörde düzenleyin.</p>
 
-                <!-- Camera Toggle -->
-                <label class="cursor-pointer bg-slate-700/50 hover:bg-slate-700 border border-slate-600 rounded-xl p-4 flex items-center justify-between transition-all group select-none">
-                    <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 rounded-full bg-slate-600 flex items-center justify-center group-hover:bg-slate-500 transition-colors">
-                            <i class="fa-solid fa-camera text-lg text-purple-400"></i>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8 relative z-10">
+                    <!-- Microphone -->
+                    <label class="cursor-pointer bg-slate-800/50 hover:bg-slate-800 border border-slate-700 rounded-xl p-4 flex items-center justify-between transition-all group select-none">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center group-hover:bg-slate-600 transition-colors">
+                                <i class="fa-solid fa-microphone text-lg text-blue-400"></i>
+                            </div>
+                            <div class="text-left">
+                                <div class="font-semibold">Mikrofon</div>
+                                <div class="text-xs text-slate-400">Sesli anlatım</div>
+                            </div>
                         </div>
-                        <div class="text-left">
-                            <div class="font-semibold">Yüz Kamerası</div>
-                            <div class="text-xs text-slate-400">Sağ alt köşe (Facecam)</div>
-                        </div>
-                    </div>
-                    <div class="relative">
-                        <input type="checkbox" id="cam-toggle" class="sr-only peer">
-                        <div class="w-11 h-6 bg-slate-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-500"></div>
-                    </div>
-                </label>
+                        <input type="checkbox" id="mic-toggle" class="w-5 h-5 accent-blue-500">
+                    </label>
 
-                <!-- Audio Visualizer -->
-                <div class="md:col-span-2 bg-slate-700/30 border border-slate-600 rounded-xl p-4 flex items-center justify-between">
-                    <div class="text-xs text-slate-400 flex items-center gap-2">
-                        <i class="fa-solid fa-volume-high"></i> Ses Seviyesi
-                    </div>
-                    <div class="flex items-end justify-end h-6 gap-1 w-32" id="visualizer">
-                        <div class="w-1.5 bg-green-500 rounded-t h-2 mic-bar"></div>
-                        <div class="w-1.5 bg-green-500 rounded-t h-3 mic-bar"></div>
-                        <div class="w-1.5 bg-green-500 rounded-t h-5 mic-bar"></div>
-                        <div class="w-1.5 bg-green-500 rounded-t h-4 mic-bar"></div>
-                        <div class="w-1.5 bg-green-500 rounded-t h-6 mic-bar"></div>
-                        <div class="w-1.5 bg-green-500 rounded-t h-3 mic-bar"></div>
-                        <div class="w-1.5 bg-green-500 rounded-t h-2 mic-bar"></div>
-                    </div>
+                    <!-- Camera -->
+                    <label class="cursor-pointer bg-slate-800/50 hover:bg-slate-800 border border-slate-700 rounded-xl p-4 flex items-center justify-between transition-all group select-none">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center group-hover:bg-slate-600 transition-colors">
+                                <i class="fa-solid fa-camera text-lg text-purple-400"></i>
+                            </div>
+                            <div class="text-left">
+                                <div class="font-semibold">Yüz Kamerası</div>
+                                <div class="text-xs text-slate-400">Sağ alt köşe</div>
+                            </div>
+                        </div>
+                        <input type="checkbox" id="cam-toggle" class="w-5 h-5 accent-purple-500">
+                    </label>
                 </div>
+
+                <button id="start-btn" class="w-full bg-gradient-to-r from-red-600 to-purple-600 hover:from-red-500 hover:to-purple-500 text-white font-bold text-lg py-4 rounded-xl shadow-lg shadow-purple-900/40 transform transition-all hover:scale-[1.01] active:scale-95 flex items-center justify-center gap-3 relative z-10">
+                    <div class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+                        <i class="fa-solid fa-circle text-white text-xs"></i>
+                    </div>
+                    Kaydı Başlat
+                </button>
             </div>
-
-            <button id="start-btn" class="w-full bg-gradient-to-r from-red-600 to-purple-600 hover:from-red-500 hover:to-purple-500 text-white font-bold text-lg py-4 rounded-xl shadow-lg shadow-purple-900/40 transform transition-all hover:scale-[1.01] active:scale-95 flex items-center justify-center gap-3 relative z-10">
-                <div class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
-                    <i class="fa-solid fa-circle text-white text-xs"></i>
-                </div>
-                Kaydı Başlat
-            </button>
-            
-            <p class="mt-4 text-xs text-slate-500 italic">Facecam seçerseniz tarayıcı kamera izni isteyecektir.</p>
         </div>
 
-        <!-- Preview Panel -->
-        <div id="preview-panel" class="hidden w-full h-full max-w-5xl flex flex-col animate-fade-in">
-            <div class="flex-1 bg-black rounded-xl overflow-hidden shadow-2xl border border-slate-700 relative group">
-                <video id="video-preview" class="w-full h-full object-contain bg-neutral-900" controls></video>
-                <div class="absolute top-4 right-4 bg-black/60 px-3 py-1 rounded text-xs backdrop-blur-sm text-white/80 border border-white/10">
-                    Önizleme
-                </div>
-            </div>
+        <!-- VIEW 2: Editor Panel (Initially Hidden) -->
+        <div id="editor-panel" class="hidden flex-1 flex flex-col h-full animate-fade-in">
             
-            <!-- Download Options -->
-            <div class="mt-6 flex flex-col items-center">
-                <h3 class="text-sm uppercase tracking-wider text-slate-400 font-bold mb-3">İndirme Formatını Seçin</h3>
-                <div class="flex flex-col md:flex-row gap-4 w-full md:w-auto">
-                    <!-- MP4 Button -->
-                    <button id="download-mp4" class="w-full md:w-64 bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-6 rounded-lg shadow-lg flex items-center justify-between gap-3 transition-transform hover:-translate-y-1 group">
-                        <div class="flex items-center gap-2">
-                            <i class="fa-solid fa-film"></i>
-                            <span>MP4 Olarak İndir</span>
-                        </div>
-                        <span class="text-xs bg-blue-700 px-2 py-1 rounded group-hover:bg-blue-600">Önerilen</span>
+            <!-- Editor Toolbar -->
+            <div class="bg-slate-900 border-b border-slate-800 p-2 flex justify-between items-center shrink-0">
+                <div class="flex items-center gap-2">
+                    <button id="add-text-btn" class="bg-slate-800 hover:bg-slate-700 text-white px-3 py-1.5 rounded text-sm flex items-center gap-2 border border-slate-700 transition-colors">
+                        <i class="fa-solid fa-font"></i> Yazı Ekle
                     </button>
-                    
-                    <!-- WebM Button -->
-                    <button id="download-webm" class="w-full md:w-64 bg-slate-700 hover:bg-slate-600 text-white font-medium py-3 px-6 rounded-lg border border-slate-600 flex items-center justify-between gap-3 transition-colors">
-                        <div class="flex items-center gap-2">
-                            <i class="fa-brands fa-chrome"></i>
-                            <span>WebM Olarak İndir</span>
-                        </div>
-                        <span class="text-xs text-slate-400">Web</span>
+                    <div class="h-6 w-px bg-slate-700 mx-2"></div>
+                    <span class="text-xs text-slate-500">Yazıları taşımak için önizleme üzerinde sürükleyin.</span>
+                </div>
+                <div class="flex items-center gap-2">
+                     <button id="new-record-btn" class="text-slate-400 hover:text-white px-3 py-1 text-sm">
+                        <i class="fa-solid fa-trash mr-1"></i> Vazgeç
                     </button>
-                    
-                    <!-- New Record -->
-                    <button id="new-record-btn" class="w-full md:w-auto bg-transparent hover:bg-slate-800 text-slate-300 font-medium py-3 px-4 rounded-lg border border-slate-700 flex items-center justify-center gap-2" title="Yeni Kayıt">
-                        <i class="fa-solid fa-rotate-left"></i>
+                    <button id="export-btn" class="bg-green-600 hover:bg-green-500 text-white px-4 py-1.5 rounded text-sm font-bold flex items-center gap-2 shadow-lg shadow-green-900/20 transition-all">
+                        <i class="fa-solid fa-download"></i> Videoyu Oluştur & İndir
                     </button>
                 </div>
-                <p class="mt-2 text-xs text-slate-500 italic">Not: Bazı tarayıcılarda MP4 seçseniz bile altyapı gereği WebM kaydedilebilir, ancak uzantı uyumlu hale getirilir.</p>
             </div>
+
+            <div class="flex-1 flex overflow-hidden">
+                <!-- Left: Canvas Area -->
+                <div class="flex-1 bg-black flex items-center justify-center relative group p-4 bg-[radial-gradient(#222_1px,transparent_1px)] [background-size:16px_16px]">
+                    <canvas id="editor-canvas" class="max-w-full max-h-full shadow-2xl border border-slate-800"></canvas>
+                    
+                    <!-- Canvas Controls Overlay -->
+                    <div class="absolute bottom-6 left-1/2 transform -translate-x-1/2 bg-slate-900/80 backdrop-blur px-4 py-2 rounded-full flex items-center gap-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button id="editor-play-btn" class="text-white hover:text-blue-400 text-xl w-8 h-8 flex items-center justify-center">
+                            <i class="fa-solid fa-play"></i>
+                        </button>
+                        <span id="editor-time" class="font-mono text-sm w-16 text-center">00:00</span>
+                    </div>
+                </div>
+
+                <!-- Right: Properties Panel -->
+                <div class="w-72 bg-slate-900 border-l border-slate-800 flex flex-col shrink-0">
+                    <div class="p-3 border-b border-slate-800 font-bold text-sm text-slate-300">
+                        Katmanlar & Özellikler
+                    </div>
+                    
+                    <!-- Selected Layer Properties -->
+                    <div id="layer-props" class="p-4 border-b border-slate-800 hidden">
+                        <label class="block text-xs text-slate-500 mb-1">Metin İçeriği</label>
+                        <input type="text" id="prop-text" class="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 text-sm mb-3 focus:border-blue-500 outline-none">
+                        
+                        <div class="flex gap-2 mb-3">
+                            <div class="flex-1">
+                                <label class="block text-xs text-slate-500 mb-1">Renk</label>
+                                <input type="color" id="prop-color" class="w-full h-8 bg-transparent cursor-pointer rounded">
+                            </div>
+                            <div class="flex-1">
+                                <label class="block text-xs text-slate-500 mb-1">Boyut</label>
+                                <input type="number" id="prop-size" class="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 text-sm" min="10" max="200">
+                            </div>
+                        </div>
+                        <button id="delete-layer-btn" class="w-full bg-red-900/30 text-red-400 hover:bg-red-900/50 border border-red-900/50 rounded py-1 text-xs">Katmanı Sil</button>
+                    </div>
+                    
+                    <!-- Layers List -->
+                    <div id="layers-list" class="flex-1 overflow-y-auto p-2 space-y-1">
+                        <!-- Dynamic content -->
+                        <div class="text-center text-xs text-slate-600 mt-10 italic">Henüz yazı katmanı eklenmedi.</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bottom: Timeline -->
+            <div class="h-32 bg-slate-900 border-t border-slate-800 shrink-0 flex flex-col">
+                <!-- Time Scrubber -->
+                <div class="h-6 bg-slate-800 border-b border-slate-700 flex items-center px-4 relative">
+                    <input type="range" id="timeline-scrubber" min="0" max="100" value="0" step="0.1" class="w-full h-full opacity-0 absolute inset-0 z-10 cursor-pointer">
+                    <div id="scrubber-track" class="w-full h-1 bg-slate-600 relative rounded">
+                        <div id="scrubber-fill" class="h-full bg-blue-500 w-0 rounded"></div>
+                        <div id="scrubber-thumb" class="w-3 h-3 bg-white rounded-full absolute top-1/2 transform -translate-y-1/2 shadow" style="left: 0%"></div>
+                    </div>
+                </div>
+
+                <!-- Tracks -->
+                <div class="flex-1 overflow-y-auto p-2 space-y-1 custom-scrollbar">
+                    <!-- Video Track -->
+                    <div class="flex items-center h-8 bg-slate-800/50 rounded border border-slate-700 overflow-hidden relative timeline-track group">
+                        <div class="w-20 bg-slate-800 h-full flex items-center justify-center border-r border-slate-700 text-xs font-bold text-blue-400 z-10">VIDEO</div>
+                        <div class="flex-1 h-full relative">
+                            <div class="absolute inset-0 bg-blue-900/30 flex items-center justify-center text-xs text-blue-300/50 tracking-widest">ANA KAYIT</div>
+                        </div>
+                    </div>
+
+                     <!-- Audio Track (Visual Only) -->
+                     <div class="flex items-center h-8 bg-slate-800/50 rounded border border-slate-700 overflow-hidden relative timeline-track">
+                        <div class="w-20 bg-slate-800 h-full flex items-center justify-center border-r border-slate-700 text-xs font-bold text-green-400 z-10">SES</div>
+                        <div class="flex-1 h-full relative">
+                             <div class="absolute inset-0 bg-green-900/30 flex items-center overflow-hidden opacity-50">
+                                <!-- Fake waveform pattern -->
+                                <div class="w-full h-4 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0IiBoZWlnaHQ9IjEwIj48cmVjdCB3aWR0aD0iMiIgaGVpZ2h0PSI2IiB4PSIxIiB5PSIyIiBmaWxsPSIjNGFkZThjIiAvPjwvc3ZnPg==')]"></div>
+                             </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Text Tracks Container -->
+                    <div id="text-tracks-area" class="space-y-1"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- VIEW 3: Rendering Overlay -->
+        <div id="render-overlay" class="hidden absolute inset-0 bg-slate-950/95 z-50 flex flex-col items-center justify-center">
+            <div class="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-6"></div>
+            <h2 class="text-2xl font-bold mb-2">Video İşleniyor...</h2>
+            <p class="text-slate-400 mb-6">Lütfen bekleyin, düzenlemeleriniz uygulanıyor.</p>
+            <div class="w-64 h-2 bg-slate-800 rounded overflow-hidden">
+                <div id="render-progress" class="h-full bg-blue-600 w-0 transition-all duration-100"></div>
+            </div>
+            <p id="render-status" class="text-xs text-slate-500 mt-2">0%</p>
         </div>
 
     </main>
     
-    <!-- Hidden Elements for Canvas Composition -->
+    <!-- Hidden Elements -->
     <video id="src-video-screen" autoplay muted class="hidden"></video>
     <video id="src-video-cam" autoplay muted class="hidden"></video>
+    <!-- Source for Editor (Hidden) -->
+    <video id="editor-source-video" class="hidden" playsinline></video>
+    <!-- Hidden canvas for render capturing -->
     <canvas id="compositor-canvas" class="hidden"></canvas>
 
     <!-- Script Logic -->
     <script>
-        // DOM Elements
-        const startBtn = document.getElementById('start-btn');
-        const stopBtnTop = document.getElementById('stop-btn-top');
-        const pauseBtn = document.getElementById('pause-btn');
-        const pauseIcon = document.getElementById('pause-icon');
-        const micToggle = document.getElementById('mic-toggle');
-        const camToggle = document.getElementById('cam-toggle');
-        const setupPanel = document.getElementById('setup-panel');
-        const recordingStatus = document.getElementById('recording-status');
-        const previewPanel = document.getElementById('preview-panel');
-        const videoPreview = document.getElementById('video-preview');
-        const newRecordBtn = document.getElementById('new-record-btn');
-        const timerDisplay = document.getElementById('timer');
-        const recDot = document.getElementById('rec-dot');
-        const visualizerBars = document.querySelectorAll('.mic-bar');
-        const countdownOverlay = document.getElementById('countdown-overlay');
-        const countdownText = document.getElementById('countdown-text');
-        const toast = document.getElementById('toast');
-        const toastMsg = document.getElementById('toast-msg');
-        
-        // Download Buttons
-        const downloadMp4Btn = document.getElementById('download-mp4');
-        const downloadWebmBtn = document.getElementById('download-webm');
-
-        // Canvas Composition Elements
-        const srcScreen = document.getElementById('src-video-screen');
-        const srcCam = document.getElementById('src-video-cam');
-        const canvas = document.getElementById('compositor-canvas');
-        const ctx = canvas.getContext('2d');
-
-        // State Variables
+        // --- CORE VARIABLES ---
         let mediaRecorder;
         let recordedChunks = [];
+        let recordedBlobUrl = null;
+        let recordingStream = null;
+        let audioContext;
+        let isRecording = false;
         let timerInterval;
         let totalSeconds = 0;
-        let isPaused = false;
-        let finalStream; // Stream to be recorded
-        let displayStream; // Screen capture stream
-        let userStream; // Camera/Mic stream
-        let audioContext;
-        let recordedBlobUrl = null;
+        
+        // --- EDITOR VARIABLES ---
+        let editorCanvas = document.getElementById('editor-canvas');
+        let editorCtx = editorCanvas.getContext('2d');
+        let editorVideo = document.getElementById('editor-source-video');
+        let textLayers = []; // { id, text, x, y, color, size, startTime, endTime, isSelected }
+        let selectedLayerId = null;
+        let isEditorPlaying = false;
+        let animationFrameId;
+        let videoDuration = 0;
+        let isDragging = false;
+        let dragTargetId = null;
+        let dragOffsetX, dragOffsetY;
 
-        // --- Helper: Toast Notification ---
+        // --- DOM ELEMENTS ---
+        const startBtn = document.getElementById('start-btn');
+        const setupPanel = document.getElementById('setup-panel');
+        const editorPanel = document.getElementById('editor-panel');
+        const renderOverlay = document.getElementById('render-overlay');
+        const micToggle = document.getElementById('mic-toggle');
+        const camToggle = document.getElementById('cam-toggle');
+        const toast = document.getElementById('toast');
+        const toastMsg = document.getElementById('toast-msg');
+
+        // Helper: Toast
         function showToast(msg) {
             toastMsg.innerText = msg;
             toast.classList.remove('hidden');
-            setTimeout(() => {
-                toast.classList.add('hidden');
-            }, 4000);
+            setTimeout(() => toast.classList.add('hidden'), 3000);
         }
 
-        // --- Visualizer Animation (Fake Idle) ---
-        setInterval(() => {
-            if (!mediaRecorder || mediaRecorder.state === 'inactive') {
-                visualizerBars.forEach(bar => {
-                    const h = Math.floor(Math.random() * 15) + 4; 
-                    bar.style.height = `${h}px`;
-                });
-            }
-        }, 100);
+        // ==========================================
+        // PART 1: RECORDING LOGIC
+        // ==========================================
 
-        // --- START Process ---
         startBtn.addEventListener('click', async () => {
-            // 1. Get Screen Stream FIRST (Browser requirement)
             try {
-                displayStream = await navigator.mediaDevices.getDisplayMedia({
-                    video: { frameRate: 60 },
-                    audio: true // System Audio
-                });
-            } catch (err) {
-                console.warn("Ekran paylaşımı iptal edildi.");
-                return; // User cancelled
-            }
+                // 1. Get Screen
+                const displayStream = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 60 }, audio: true });
+                
+                // 2. Get User Media
+                const useMic = micToggle.checked;
+                const useCam = camToggle.checked;
+                let userStream = null;
 
-            // 2. Setup Audio & Camera
-            const useMic = micToggle.checked;
-            const useCam = camToggle.checked;
-            let activeUseCam = useCam;
-
-            try {
                 if (useMic || useCam) {
-                    userStream = await navigator.mediaDevices.getUserMedia({
-                        audio: useMic,
-                        video: useCam ? { width: 320, height: 240, facingMode: "user" } : false
-                    });
+                    try {
+                        userStream = await navigator.mediaDevices.getUserMedia({
+                            audio: useMic,
+                            video: useCam ? { width: 320, height: 240 } : false
+                        });
+                    } catch (e) {
+                        showToast("Kamera/Mikrofon izni alınamadı.");
+                    }
                 }
+
+                // 3. Start Countdown
+                setupPanel.classList.add('hidden');
+                document.getElementById('countdown-overlay').classList.remove('hidden');
+                let count = 3;
+                const cInt = setInterval(() => {
+                    count--;
+                    document.getElementById('countdown-text').innerText = count;
+                    if (count <= 0) {
+                        clearInterval(cInt);
+                        document.getElementById('countdown-overlay').classList.add('hidden');
+                        startRecording(displayStream, userStream, useCam);
+                    }
+                }, 1000);
+
             } catch (err) {
-                console.error("Medya aygıtı hatası:", err);
-                // HATA YÖNETİMİ: Kamera/Mikrofon açılamazsa sadece ekranla devam et
-                if (useCam) {
-                    showToast("Kameraya erişilemedi! Sadece ekran kaydedilecek.");
-                    activeUseCam = false;
-                    // Eğer sadece mikrofon hatasıysa ve video yoksa userStream null olabilir, dikkat.
-                    // Burada basitleştirilmiş fallback yapıyoruz.
-                } else if (useMic) {
-                    showToast("Mikrofona erişilemedi! Sadece sistem sesi kaydedilecek.");
-                }
+                console.warn(err);
             }
-
-            // Check if userStream actually has video tracks (Double Check)
-            if (activeUseCam && userStream && userStream.getVideoTracks().length === 0) {
-                 showToast("Kamera bulunamadı, sadece ekran kaydedilecek.");
-                 activeUseCam = false;
-            }
-
-            // 3. Start Countdown
-            setupPanel.classList.add('hidden');
-            countdownOverlay.classList.remove('hidden');
-            
-            let count = 3;
-            countdownText.innerText = count;
-            
-            const countInt = setInterval(() => {
-                count--;
-                if (count > 0) {
-                    countdownText.innerText = count;
-                } else {
-                    clearInterval(countInt);
-                    countdownOverlay.classList.add('hidden');
-                    // Begin Recording with validated cam flag
-                    initRecording(activeUseCam); 
-                }
-            }, 1000);
         });
 
-        // --- Recording Logic ---
-        async function initRecording(useCam) {
+        async function startRecording(displayStream, userStream, useCam) {
+            const canvas = document.getElementById('compositor-canvas');
+            const ctx = canvas.getContext('2d');
+            const srcScreen = document.getElementById('src-video-screen');
+            const srcCam = document.getElementById('src-video-cam');
             
-            // Audio Mixing Setup
-            audioContext = new AudioContext();
-            const destNode = audioContext.createMediaStreamDestination();
+            srcScreen.srcObject = displayStream;
+            await srcScreen.play();
+            canvas.width = srcScreen.videoWidth;
+            canvas.height = srcScreen.videoHeight;
+
+            let finalStream;
             
-            // Add System Audio
-            if (displayStream.getAudioTracks().length > 0) {
-                const sysSource = audioContext.createMediaStreamSource(displayStream);
-                const sysGain = audioContext.createGain();
-                sysGain.gain.value = 1.0; // System volume
-                sysSource.connect(sysGain).connect(destNode);
+            // Audio Mixing
+            const ac = new AudioContext();
+            const dest = ac.createMediaStreamDestination();
+            if(displayStream.getAudioTracks().length) ac.createMediaStreamSource(displayStream).connect(dest);
+            if(userStream && userStream.getAudioTracks().length) {
+                const ms = ac.createMediaStreamSource(userStream);
+                const g = ac.createGain(); g.gain.value = 1.5;
+                ms.connect(g).connect(dest);
             }
 
-            // Add Mic Audio (only if userStream exists and has audio)
-            if (userStream && userStream.getAudioTracks().length > 0) {
-                const micSource = audioContext.createMediaStreamSource(userStream);
-                const micGain = audioContext.createGain();
-                micGain.gain.value = 1.5; // Boost mic volume slightly
-                micSource.connect(micGain).connect(destNode);
-            }
-
-            // Video Stream Selection
-            let videoTrack;
-
-            if (useCam && userStream && userStream.getVideoTracks().length > 0) {
-                // CANVAS COMPOSITION MODE
-                srcScreen.srcObject = displayStream;
+            // Compositor Loop
+            if (useCam && userStream && userStream.getVideoTracks().length) {
                 srcCam.srcObject = userStream;
+                await srcCam.play();
                 
-                try {
-                    // Wait for video metadata to set canvas size
-                    await srcScreen.play();
-                    await srcCam.play();
-
-                    canvas.width = srcScreen.videoWidth || 1920;
-                    canvas.height = srcScreen.videoHeight || 1080;
-
-                    // Start Drawing Loop
-                    drawCompositor();
-                    
-                    // Get stream from canvas
-                    const canvasStream = canvas.captureStream(60);
-                    videoTrack = canvasStream.getVideoTracks()[0];
-                } catch(e) {
-                    // Fallback if play fails
-                    console.error("Canvas oynatma hatası", e);
-                    videoTrack = displayStream.getVideoTracks()[0];
+                function draw() {
+                    if(!isRecording) return;
+                    ctx.drawImage(srcScreen, 0, 0, canvas.width, canvas.height);
+                    // Facecam (Circle Bottom Right)
+                    const s = canvas.height * 0.25;
+                    const p = 30;
+                    const x = canvas.width - s - p;
+                    const y = canvas.height - s - p;
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.arc(x + s/2, y + s/2, s/2, 0, Math.PI*2);
+                    ctx.clip();
+                    ctx.drawImage(srcCam, x, y, s, s);
+                    ctx.strokeStyle = "white"; ctx.lineWidth = 5; ctx.stroke();
+                    ctx.restore();
+                    requestAnimationFrame(draw);
                 }
+                isRecording = true;
+                draw();
+                finalStream = canvas.captureStream(60);
             } else {
-                // DIRECT MODE (Just Screen)
-                videoTrack = displayStream.getVideoTracks()[0];
+                finalStream = displayStream; // Just screen
+                isRecording = true;
             }
 
-            // Combine Tracks (Video + Mixed Audio)
-            const tracks = [videoTrack];
-            if (destNode.stream.getAudioTracks().length > 0) {
-                tracks.push(...destNode.stream.getAudioTracks());
+            // Merge Audio
+            if (dest.stream.getAudioTracks().length) {
+                finalStream.addTrack(dest.stream.getAudioTracks()[0]);
             }
 
-            finalStream = new MediaStream(tracks);
-
-            // Initialize MediaRecorder
-            // Codec Seçimi: Öncelik MP4
-            let mimeType = 'video/mp4';
-            if (!MediaRecorder.isTypeSupported(mimeType)) {
-                // MP4 desteklenmiyorsa (örn. Firefox) WebM dene
-                mimeType = 'video/webm;codecs=vp9';
-                if (!MediaRecorder.isTypeSupported(mimeType)) {
-                    mimeType = 'video/webm';
-                }
-            }
-
-            mediaRecorder = new MediaRecorder(finalStream, {
-                mimeType: mimeType,
-                videoBitsPerSecond: 5000000 // 5 Mbps quality target
-            });
-
-            mediaRecorder.ondataavailable = (e) => {
-                if (e.data.size > 0) recordedChunks.push(e.data);
+            // Recorder
+            mediaRecorder = new MediaRecorder(finalStream, { mimeType: 'video/webm;codecs=vp9' });
+            recordedChunks = [];
+            mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recordedChunks.push(e.data); };
+            mediaRecorder.onstop = () => {
+                isRecording = false;
+                // Cleanup
+                displayStream.getTracks().forEach(t=>t.stop());
+                if(userStream) userStream.getTracks().forEach(t=>t.stop());
+                ac.close();
+                
+                // Go to Editor
+                initEditor();
             };
 
-            mediaRecorder.onstop = finishRecording;
-
-            // Handle "Stop Sharing" native button
-            displayStream.getVideoTracks()[0].onended = () => {
-                stopRecording();
-            };
+            // Native Stop
+            displayStream.getVideoTracks()[0].onended = () => mediaRecorder.stop();
 
             mediaRecorder.start();
-            startTimer();
-            recordingStatus.classList.remove('hidden');
-        }
-
-        // --- Canvas Compositor ---
-        function drawCompositor() {
-            if (!mediaRecorder || mediaRecorder.state === 'inactive') return;
-
-            // Draw Background (Screen)
-            ctx.drawImage(srcScreen, 0, 0, canvas.width, canvas.height);
-
-            // Draw Facecam (Bottom Right Circle)
-            if (!isPaused) {
-                const camSize = canvas.height * 0.25; // 25% of screen height
-                const padding = 30;
-                const camX = canvas.width - camSize - padding;
-                const camY = canvas.height - camSize - padding;
-
-                ctx.save();
-                ctx.beginPath();
-                ctx.arc(camX + camSize/2, camY + camSize/2, camSize/2, 0, Math.PI * 2);
-                ctx.closePath();
-                ctx.clip(); 
-                ctx.drawImage(srcCam, camX, camY, camSize, camSize);
-                
-                ctx.strokeStyle = "white";
-                ctx.lineWidth = 5;
-                ctx.stroke();
-                ctx.restore();
-            }
-
-            requestAnimationFrame(drawCompositor);
-        }
-
-        // --- Controls ---
-        stopBtnTop.addEventListener('click', stopRecording);
-        
-        pauseBtn.addEventListener('click', () => {
-            if (mediaRecorder.state === 'recording') {
-                mediaRecorder.pause();
-                isPaused = true;
-                pauseIcon.classList.replace('fa-pause', 'fa-play');
-                recDot.classList.replace('bg-red-500', 'bg-yellow-400');
-                recDot.classList.remove('recording-pulse');
-            } else if (mediaRecorder.state === 'paused') {
-                mediaRecorder.resume();
-                isPaused = false;
-                pauseIcon.classList.replace('fa-play', 'fa-pause');
-                recDot.classList.replace('bg-yellow-400', 'bg-red-500');
-                recDot.classList.add('recording-pulse');
-            }
-        });
-
-        function stopRecording() {
-            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-                mediaRecorder.stop();
-            }
-        }
-
-        function finishRecording() {
-            clearInterval(timerInterval);
+            document.getElementById('recording-status').classList.remove('hidden');
+            document.getElementById('mode-indicator').innerText = "🔴 KAYITTA";
+            document.getElementById('mode-indicator').classList.add('text-red-400', 'border-red-900');
             
-            // Cleanup Streams
-            if(displayStream) displayStream.getTracks().forEach(t => t.stop());
-            if(userStream) userStream.getTracks().forEach(t => t.stop());
-            if(finalStream) finalStream.getTracks().forEach(t => t.stop());
-            if(audioContext) audioContext.close();
-
-            // Blob Oluştur
-            const blob = new Blob(recordedChunks, { type: mediaRecorder.mimeType });
-            recordedBlobUrl = URL.createObjectURL(blob);
-            
-            videoPreview.src = recordedBlobUrl;
-            recordingStatus.classList.add('hidden');
-            previewPanel.classList.remove('hidden');
-        }
-
-        // --- Download Handlers ---
-        function downloadVideo(format) {
-            if (!recordedBlobUrl) return;
-
-            const a = document.createElement('a');
-            a.href = recordedBlobUrl;
-            
-            // Dosya adı ve uzantı
-            const dateStr = new Date().toISOString().slice(0,19).replace('T','-').replace(/:/g,'');
-            a.download = `RecMaster_${dateStr}.${format}`;
-            
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-        }
-
-        downloadMp4Btn.addEventListener('click', () => downloadVideo('mp4'));
-        downloadWebmBtn.addEventListener('click', () => downloadVideo('webm'));
-
-        function startTimer() {
+            // Timer
             totalSeconds = 0;
-            recordedChunks = [];
             timerInterval = setInterval(() => {
-                if (!isPaused) {
-                    totalSeconds++;
-                    const hrs = Math.floor(totalSeconds / 3600);
-                    const mins = Math.floor((totalSeconds % 3600) / 60);
-                    const secs = totalSeconds % 60;
-                    timerDisplay.innerText = 
-                        `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-                }
+                totalSeconds++;
+                const m = Math.floor(totalSeconds/60).toString().padStart(2,'0');
+                const s = (totalSeconds%60).toString().padStart(2,'0');
+                document.getElementById('timer').innerText = `00:${m}:${s}`;
             }, 1000);
         }
 
-        newRecordBtn.addEventListener('click', () => location.reload());
+        document.getElementById('stop-btn-top').onclick = () => mediaRecorder.stop();
+        
+        // ==========================================
+        // PART 2: EDITOR LOGIC
+        // ==========================================
+
+        function initEditor() {
+            clearInterval(timerInterval);
+            document.getElementById('recording-status').classList.add('hidden');
+            setupPanel.classList.add('hidden');
+            editorPanel.classList.remove('hidden');
+            document.getElementById('mode-indicator').innerText = "🎬 STÜDYO";
+            document.getElementById('mode-indicator').className = "bg-blue-900/30 px-2 py-1 rounded border border-blue-800 text-blue-400";
+
+            // Load Video
+            const blob = new Blob(recordedChunks, { type: 'video/webm' });
+            recordedBlobUrl = URL.createObjectURL(blob);
+            editorVideo.src = recordedBlobUrl;
+            
+            editorVideo.onloadedmetadata = () => {
+                videoDuration = editorVideo.duration;
+                // Set canvas size to match video
+                editorCanvas.width = editorVideo.videoWidth;
+                editorCanvas.height = editorVideo.videoHeight;
+                drawEditorFrame();
+            };
+        }
+
+        // --- DRAWING THE EDITOR ---
+        function drawEditorFrame() {
+            // 1. Draw Video
+            editorCtx.drawImage(editorVideo, 0, 0, editorCanvas.width, editorCanvas.height);
+
+            // 2. Draw Text Layers
+            const currentTime = editorVideo.currentTime;
+            
+            textLayers.forEach(layer => {
+                // Check if visible in timeline (Assuming full duration for now, easy upgrade)
+                // Drawing Text
+                editorCtx.font = `bold ${layer.size}px Arial`;
+                editorCtx.fillStyle = layer.color;
+                editorCtx.textAlign = "center";
+                editorCtx.textBaseline = "middle";
+                
+                // Selection Border
+                if (layer.id === selectedLayerId) {
+                    const metrics = editorCtx.measureText(layer.text);
+                    const h = layer.size;
+                    const w = metrics.width;
+                    const p = 10;
+                    editorCtx.save();
+                    editorCtx.strokeStyle = "#3b82f6";
+                    editorCtx.lineWidth = 4;
+                    editorCtx.setLineDash([10, 5]);
+                    editorCtx.strokeRect(layer.x - w/2 - p, layer.y - h/2 - p, w + p*2, h + p*2);
+                    editorCtx.restore();
+                }
+
+                editorCtx.fillText(layer.text, layer.x, layer.y);
+            });
+
+            // Update UI
+            updateTimelineUI();
+
+            if (isEditorPlaying) {
+                animationFrameId = requestAnimationFrame(drawEditorFrame);
+            }
+        }
+
+        // --- CONTROLS ---
+        const playBtn = document.getElementById('editor-play-btn');
+        const scrubber = document.getElementById('timeline-scrubber');
+        
+        playBtn.onclick = togglePlay;
+        editorVideo.onended = () => { isEditorPlaying = false; playBtn.innerHTML = '<i class="fa-solid fa-play"></i>'; };
+
+        function togglePlay() {
+            if (isEditorPlaying) {
+                editorVideo.pause();
+                isEditorPlaying = false;
+                cancelAnimationFrame(animationFrameId);
+                playBtn.innerHTML = '<i class="fa-solid fa-play"></i>';
+            } else {
+                editorVideo.play();
+                isEditorPlaying = true;
+                drawEditorFrame();
+                playBtn.innerHTML = '<i class="fa-solid fa-pause"></i>';
+            }
+        }
+
+        // Scrubber Logic
+        scrubber.addEventListener('input', (e) => {
+            const pct = e.target.value;
+            const time = (pct / 100) * videoDuration;
+            editorVideo.currentTime = time;
+            if(!isEditorPlaying) drawEditorFrame();
+        });
+
+        function updateTimelineUI() {
+            const pct = (editorVideo.currentTime / videoDuration) * 100;
+            document.getElementById('scrubber-fill').style.width = `${pct}%`;
+            document.getElementById('scrubber-thumb').style.left = `${pct}%`;
+            document.getElementById('timeline-scrubber').value = pct;
+            
+            const m = Math.floor(editorVideo.currentTime/60).toString().padStart(2,'0');
+            const s = Math.floor(editorVideo.currentTime%60).toString().padStart(2,'0');
+            document.getElementById('editor-time').innerText = `${m}:${s}`;
+        }
+
+        // --- TEXT LAYERS LOGIC ---
+        document.getElementById('add-text-btn').onclick = () => {
+            const newLayer = {
+                id: Date.now(),
+                text: "Yeni Metin",
+                x: editorCanvas.width / 2,
+                y: editorCanvas.height / 2,
+                color: "#ffffff",
+                size: 60,
+                startTime: 0,
+                endTime: videoDuration
+            };
+            textLayers.push(newLayer);
+            selectLayer(newLayer.id);
+            if(!isEditorPlaying) drawEditorFrame();
+            updateLayersList();
+        };
+
+        function updateLayersList() {
+            const list = document.getElementById('layers-list');
+            const trackArea = document.getElementById('text-tracks-area');
+            
+            list.innerHTML = '';
+            trackArea.innerHTML = '';
+
+            textLayers.forEach(layer => {
+                // UI List Item
+                const item = document.createElement('div');
+                item.className = `p-2 rounded bg-slate-800 border border-slate-700 cursor-pointer text-sm flex justify-between items-center layer-item ${layer.id === selectedLayerId ? 'active' : ''}`;
+                item.innerHTML = `<span class="truncate w-32 font-medium">${layer.text}</span> <i class="fa-solid fa-pen text-slate-500 text-xs"></i>`;
+                item.onclick = () => { selectLayer(layer.id); if(!isEditorPlaying) drawEditorFrame(); };
+                list.appendChild(item);
+
+                // Timeline Track Item
+                const track = document.createElement('div');
+                track.className = "h-6 bg-blue-900/40 rounded border border-blue-800 relative overflow-hidden text-xs flex items-center px-2 text-blue-300";
+                track.innerText = "T: " + layer.text;
+                trackArea.appendChild(track);
+            });
+        }
+
+        function selectLayer(id) {
+            selectedLayerId = id;
+            const layer = textLayers.find(l => l.id === id);
+            if (layer) {
+                document.getElementById('layer-props').classList.remove('hidden');
+                document.getElementById('prop-text').value = layer.text;
+                document.getElementById('prop-color').value = layer.color;
+                document.getElementById('prop-size').value = layer.size;
+            } else {
+                document.getElementById('layer-props').classList.add('hidden');
+            }
+            updateLayersList();
+        }
+
+        // Property Listeners
+        document.getElementById('prop-text').oninput = (e) => {
+            const l = textLayers.find(l => l.id === selectedLayerId);
+            if(l) { l.text = e.target.value; if(!isEditorPlaying) drawEditorFrame(); updateLayersList(); }
+        };
+        document.getElementById('prop-color').oninput = (e) => {
+            const l = textLayers.find(l => l.id === selectedLayerId);
+            if(l) { l.color = e.target.value; if(!isEditorPlaying) drawEditorFrame(); }
+        };
+        document.getElementById('prop-size').oninput = (e) => {
+            const l = textLayers.find(l => l.id === selectedLayerId);
+            if(l) { l.size = parseInt(e.target.value); if(!isEditorPlaying) drawEditorFrame(); }
+        };
+        document.getElementById('delete-layer-btn').onclick = () => {
+            textLayers = textLayers.filter(l => l.id !== selectedLayerId);
+            selectedLayerId = null;
+            document.getElementById('layer-props').classList.add('hidden');
+            if(!isEditorPlaying) drawEditorFrame();
+            updateLayersList();
+        };
+
+        // --- MOUSE DRAGGING LOGIC ---
+        // Basic drag implementation for canvas
+        function getMousePos(evt) {
+            const rect = editorCanvas.getBoundingClientRect();
+            // Calculate scale ratio between CSS size and internal resolution
+            const scaleX = editorCanvas.width / rect.width;
+            const scaleY = editorCanvas.height / rect.height;
+            return {
+                x: (evt.clientX - rect.left) * scaleX,
+                y: (evt.clientY - rect.top) * scaleY
+            };
+        }
+
+        editorCanvas.addEventListener('mousedown', (e) => {
+            const pos = getMousePos(e);
+            // Check collision with layers (reverse order to pick top-most)
+            for (let i = textLayers.length - 1; i >= 0; i--) {
+                const layer = textLayers[i];
+                // Simple hit box estimation (circle based on font size)
+                const dist = Math.sqrt(Math.pow(pos.x - layer.x, 2) + Math.pow(pos.y - layer.y, 2));
+                if (dist < layer.size * 2) { // Generous hit area
+                    selectLayer(layer.id);
+                    isDragging = true;
+                    dragTargetId = layer.id;
+                    if(!isEditorPlaying) drawEditorFrame(); // update selection box
+                    return;
+                }
+            }
+            // If clicked empty space, deselect
+            selectedLayerId = null;
+            document.getElementById('layer-props').classList.add('hidden');
+            updateLayersList();
+            if(!isEditorPlaying) drawEditorFrame();
+        });
+
+        editorCanvas.addEventListener('mousemove', (e) => {
+            if (isDragging && dragTargetId) {
+                const pos = getMousePos(e);
+                const layer = textLayers.find(l => l.id === dragTargetId);
+                if (layer) {
+                    layer.x = pos.x;
+                    layer.y = pos.y;
+                    if(!isEditorPlaying) drawEditorFrame();
+                }
+            }
+        });
+
+        editorCanvas.addEventListener('mouseup', () => {
+            isDragging = false;
+            dragTargetId = null;
+        });
+
+        // ==========================================
+        // PART 3: EXPORT / RENDER
+        // ==========================================
+        
+        document.getElementById('export-btn').onclick = async () => {
+            // Stop playback
+            if(isEditorPlaying) togglePlay();
+            
+            renderOverlay.classList.remove('hidden');
+            
+            // Setup recording canvas
+            const exportStream = editorCanvas.captureStream(60);
+            
+            // Add Audio from original recording if exists
+            // Since we merged audio into the webm, captureStream might not grab it automatically from canvas.
+            // We need to play the video element (which has audio) and captureStream from canvas (video).
+            // Combining them:
+            let finalExportStream;
+            
+            // Audio workaround: Capture audio from the video element using AudioContext
+            const acExport = new AudioContext();
+            const sourceNode = acExport.createMediaElementSource(editorVideo);
+            const destNode = acExport.createMediaStreamDestination();
+            sourceNode.connect(destNode);
+            sourceNode.connect(acExport.destination); // Optional: hear it while rendering
+
+            const audioTracks = destNode.stream.getAudioTracks();
+            if (audioTracks.length > 0) {
+                exportStream.addTrack(audioTracks[0]);
+            }
+            
+            const recorder = new MediaRecorder(exportStream, { mimeType: 'video/webm;codecs=vp9' });
+            const chunks = [];
+            recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
+            
+            recorder.onstop = () => {
+                acExport.close();
+                const blob = new Blob(chunks, { type: 'video/webm' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `RecMaster_Edited_${Date.now()}.webm`;
+                a.click();
+                
+                renderOverlay.classList.add('hidden');
+                showToast("Video başarıyla indirildi!");
+            };
+
+            recorder.start();
+
+            // Play video from start to end to "bake" the canvas
+            editorVideo.currentTime = 0;
+            // Mute video so user doesn't hear double audio if we connected to destination
+            // editorVideo.muted = true; // Caution: MediaElementSource might need unmuted
+            
+            await editorVideo.play();
+            
+            const updateRenderLoop = () => {
+                drawEditorFrame(); // Draw text on canvas
+                
+                // Progress Bar
+                const pct = (editorVideo.currentTime / videoDuration) * 100;
+                document.getElementById('render-progress').style.width = `${pct}%`;
+                document.getElementById('render-status').innerText = Math.round(pct) + "%";
+
+                if (!editorVideo.paused && !editorVideo.ended) {
+                    requestAnimationFrame(updateRenderLoop);
+                } else {
+                    recorder.stop();
+                }
+            };
+            
+            updateRenderLoop();
+        };
+
+        document.getElementById('new-record-btn').onclick = () => location.reload();
 
     </script>
 </body>
