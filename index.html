@@ -3,12 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RecMaster Lite: Ekran Kaydedici</title>
+    <title>RecMaster: Modern Ekran Kaydedici</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script>
         tailwind.config = {
             theme: {
+                fontFamily: {
+                    sans: ['Inter', 'sans-serif'],
+                },
                 extend: {
                     colors: {
                         slate: { 850: '#151e2e', 950: '#020617' }
@@ -18,248 +22,272 @@
         }
     </script>
     <style>
+        body { font-family: 'Inter', sans-serif; }
         .recording-pulse { animation: pulse-red 2s infinite; }
         @keyframes pulse-red {
             0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
             70% { box-shadow: 0 0 0 15px rgba(239, 68, 68, 0); }
             100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
         }
-        .animate-fade-in { animation: fadeIn 0.5s ease-in; }
+        .animate-fade-in { animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
         @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
+            from { opacity: 0; transform: scale(0.98); }
+            to { opacity: 1; transform: scale(1); }
         }
         
-        /* Crop Box Styles */
+        /* Glass Effect */
+        .glass {
+            background: rgba(15, 23, 42, 0.7);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        /* Crop Box */
         #crop-container {
             user-select: none;
             touch-action: none;
-            overflow: hidden; /* Taşmayı önle */
+            overflow: hidden;
         }
-        /* Düzenleme Modundaki Kutu */
         #crop-box {
-            /* İçeriği görebilmek için border yerine outline kullanıyoruz ki boyut hesaplaması şaşmasın */
-            /* boxShadow ile karartma efekti veriyoruz */
-            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.7); 
+            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.75); 
             cursor: move;
             z-index: 20;
-            outline: 2px dashed #ffffff; /* Kesim hattı */
+            outline: 2px solid rgba(255, 255, 255, 0.8);
+            border-radius: 4px;
         }
-        /* Kayıt Sırasındaki Kılavuz (Recording Guide) */
         #crop-box.recording-mode {
-            box-shadow: none; /* Karartmayı kaldır */
+            box-shadow: none;
             cursor: default;
-            pointer-events: none; /* Tıklamaları arkaya geçir */
+            pointer-events: none;
             background: transparent;
-            /* Kılavuz çizgisini DIŞARI atıyoruz ki videoya girmesin */
-            outline: 4px solid rgba(239, 68, 68, 0.8); 
-            outline-offset: 1px; /* Videodan 1px uzaklaştır */
+            outline: 3px solid rgba(239, 68, 68, 0.8); 
+            outline-offset: 2px;
             animation: guide-pulse 2s infinite;
+            border-radius: 0;
         }
         
         @keyframes guide-pulse {
-            0% { outline-color: rgba(239, 68, 68, 0.8); }
-            50% { outline-color: rgba(239, 68, 68, 0.2); }
-            100% { outline-color: rgba(239, 68, 68, 0.8); }
+            0% { outline-color: rgba(239, 68, 68, 1); }
+            50% { outline-color: rgba(239, 68, 68, 0.3); }
+            100% { outline-color: rgba(239, 68, 68, 1); }
         }
 
         .resize-handle {
-            width: 12px;
-            height: 12px;
+            width: 10px;
+            height: 10px;
             background-color: white;
             border: 2px solid #ef4444;
             position: absolute;
             border-radius: 50%;
             z-index: 30;
+            transition: transform 0.1s;
         }
-        /* Corners */
-        .handle-nw { top: -6px; left: -6px; cursor: nw-resize; }
-        .handle-ne { top: -6px; right: -6px; cursor: ne-resize; }
-        .handle-sw { bottom: -6px; left: -6px; cursor: sw-resize; }
-        .handle-se { bottom: -6px; right: -6px; cursor: se-resize; }
+        .resize-handle:hover { transform: scale(1.5); }
+        .handle-nw { top: -5px; left: -5px; cursor: nw-resize; }
+        .handle-ne { top: -5px; right: -5px; cursor: ne-resize; }
+        .handle-sw { bottom: -5px; left: -5px; cursor: sw-resize; }
+        .handle-se { bottom: -5px; right: -5px; cursor: se-resize; }
 
-        .format-btn {
-            padding: 8px 12px;
-            border-radius: 8px;
-            font-size: 0.75rem;
-            font-weight: 600;
-            transition: all 0.2s;
-            border: 1px solid #334155;
-            background-color: #0f172a;
-            color: #94a3b8;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 4px;
+        /* Segmented Control */
+        .segmented-control {
+            background: rgba(2, 6, 23, 0.5);
+            padding: 4px;
+            border-radius: 10px;
+            display: inline-flex;
+            border: 1px solid rgba(255,255,255,0.05);
         }
-        .format-btn:hover { background-color: #1e293b; color: white; }
-        .format-btn.active {
-            background-color: #dc2626;
+        .segment-btn {
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: #64748b;
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .segment-btn:hover { color: #cbd5e1; }
+        .segment-btn.active {
+            background: #1e293b;
             color: white;
-            border-color: #ef4444;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
         }
     </style>
 </head>
-<body class="bg-slate-950 text-slate-200 font-sans h-screen flex flex-col overflow-hidden select-none">
+<body class="bg-slate-950 text-slate-200 font-sans h-screen flex flex-col overflow-hidden select-none bg-[url('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=2564&auto=format&fit=crop')] bg-cover bg-center">
+    
+    <!-- Backdrop Overlay -->
+    <div class="absolute inset-0 bg-slate-950/90 backdrop-blur-sm z-0"></div>
 
     <!-- Header -->
-    <header class="bg-slate-900 border-b border-slate-800 h-16 flex items-center px-6 justify-between shrink-0 z-50">
+    <header class="h-16 flex items-center px-6 justify-between shrink-0 z-50 relative border-b border-white/5 bg-slate-950/50 backdrop-blur-md">
         <div class="flex items-center gap-3">
-            <div class="w-8 h-8 bg-gradient-to-br from-red-600 to-orange-600 rounded-lg flex items-center justify-center shadow-lg shadow-red-500/20">
-                <i class="fa-solid fa-crop-simple text-white text-sm"></i>
+            <div class="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center border border-white/10">
+                <i class="fa-solid fa-record-vinyl text-red-500"></i>
             </div>
-            <h1 class="font-bold text-lg tracking-wide text-slate-100">RecMaster <span class="text-red-500 font-normal">Lite</span></h1>
+            <h1 class="font-bold text-lg tracking-tight text-white">RecMaster</h1>
         </div>
         <div class="flex items-center gap-4">
-            <div id="status-badge" class="text-xs px-3 py-1 rounded-full bg-slate-800 border border-slate-700 text-slate-400 font-medium">Hazır</div>
+            <div id="status-badge" class="text-[10px] uppercase tracking-wider px-2 py-1 rounded border border-slate-700 text-slate-400 font-bold">Hazır</div>
         </div>
     </header>
 
     <!-- Main Workspace -->
-    <main class="flex-1 flex overflow-hidden relative items-center justify-center p-4">
+    <main class="flex-1 flex overflow-hidden relative items-center justify-center p-6 z-10">
         
         <!-- Toast Notification -->
-        <div id="toast" class="hidden absolute top-4 right-4 bg-blue-600 text-white px-4 py-3 rounded shadow-lg z-[90] flex items-center animate-fade-in text-sm font-medium">
-            <i class="fa-solid fa-circle-info mr-2"></i> <span id="toast-msg">Mesaj</span>
+        <div id="toast" class="hidden absolute top-6 right-6 bg-slate-900 border border-slate-700 text-white px-4 py-3 rounded-lg shadow-2xl z-[90] flex items-center animate-fade-in text-sm font-medium">
+            <i class="fa-solid fa-circle-info text-blue-400 mr-3"></i> <span id="toast-msg">Mesaj</span>
         </div>
         
         <!-- Countdown Overlay -->
-        <div id="countdown-overlay" class="hidden absolute inset-0 bg-slate-950/95 z-[80] flex items-center justify-center">
-            <div class="text-9xl font-bold text-white animate-ping" id="countdown-text">3</div>
+        <div id="countdown-overlay" class="hidden absolute inset-0 bg-black/80 backdrop-blur-md z-[80] flex items-center justify-center">
+            <div class="text-9xl font-black text-white animate-pulse" id="countdown-text" style="font-variant-numeric: tabular-nums;">3</div>
         </div>
 
-        <!-- Crop/Area Selection Overlay (Geliştirilmiş Önizleme Modu) -->
-        <div id="crop-overlay" class="hidden absolute inset-0 bg-slate-950 z-[60] flex flex-col">
+        <!-- Crop/Area Selection Overlay (Preview Mode) -->
+        <div id="crop-overlay" class="hidden absolute inset-0 bg-slate-950 z-[60] flex flex-col animate-fade-in">
             <!-- Toolbar -->
-            <div class="h-auto py-3 bg-slate-900 border-b border-slate-800 flex flex-col md:flex-row items-center justify-between px-6 shrink-0 gap-4">
-                <div class="flex items-center gap-4 overflow-x-auto w-full md:w-auto pb-2 md:pb-0">
-                    <button type="button" class="format-btn active shrink-0" data-format="fullscreen">
-                        <i class="fa-solid fa-expand text-lg"></i> Tam Ekran
-                    </button>
-                    <button type="button" class="format-btn shrink-0" data-format="shorts">
-                        <i class="fa-solid fa-mobile-screen text-lg"></i> Shorts (9:16)
-                    </button>
-                    <button type="button" class="format-btn shrink-0" data-format="square">
-                        <i class="fa-regular fa-square text-lg"></i> Kare (1:1)
-                    </button>
-                    <button type="button" class="format-btn shrink-0" data-format="custom">
-                        <i class="fa-solid fa-crop-simple text-lg"></i> Serbest
-                    </button>
+            <div class="h-16 border-b border-white/5 bg-slate-900/80 flex items-center justify-between px-6 shrink-0 z-50 backdrop-blur-md">
+                
+                <div class="flex items-center gap-4">
+                    <span class="text-sm font-medium text-slate-400 mr-2 hidden md:inline">Kayıt Alanı:</span>
+                    <div class="segmented-control">
+                        <button type="button" class="segment-btn active" data-mode="fullscreen">
+                            <i class="fa-solid fa-expand mr-1.5"></i> Tam Ekran
+                        </button>
+                        <button type="button" class="segment-btn" data-mode="custom">
+                            <i class="fa-solid fa-crop mr-1.5"></i> Kırp
+                        </button>
+                    </div>
                 </div>
 
-                <div class="flex items-center gap-4">
-                     <div class="text-xs text-slate-400 hidden md:block text-right">
-                        <div class="font-bold text-white">Önizleme Modu</div>
-                        <span id="crop-size-info">1920x1080</span>
+                <div class="flex items-center gap-6">
+                     <div class="text-xs text-right">
+                        <div class="text-slate-500 uppercase tracking-widest text-[10px] font-bold mb-0.5">Çözünürlük</div>
+                        <span id="crop-size-info" class="font-mono text-white">1920x1080</span>
                     </div>
-                    <button id="start-recording-btn" class="bg-red-600 hover:bg-red-500 text-white px-6 py-2 rounded-lg text-sm font-bold shadow-lg shadow-red-900/30 flex items-center gap-2 transition-transform hover:scale-105">
-                        <div class="w-2 h-2 bg-white rounded-full animate-pulse"></div> KAYDI BAŞLAT
+                    <div class="h-8 w-px bg-white/10"></div>
+                    <button id="start-recording-btn" class="bg-red-600 hover:bg-red-500 text-white px-6 py-2.5 rounded-lg text-sm font-bold shadow-lg shadow-red-900/20 flex items-center gap-2 transition-all hover:scale-105 active:scale-95">
+                        <span class="relative flex h-3 w-3 mr-1">
+                          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                          <span class="relative inline-flex rounded-full h-3 w-3 bg-white"></span>
+                        </span>
+                        KAYDI BAŞLAT
                     </button>
                 </div>
             </div>
 
             <!-- Canvas Container -->
-            <div class="flex-1 relative bg-black overflow-hidden flex items-center justify-center p-4">
-                <div id="crop-container" class="relative shadow-2xl border border-slate-800">
+            <div class="flex-1 relative bg-black/90 overflow-hidden flex items-center justify-center p-8">
+                <div id="crop-container" class="relative shadow-2xl ring-1 ring-white/10 rounded-lg overflow-hidden bg-black">
                     <!-- Source Video Preview (Under crop box) -->
-                    <video id="crop-source-video" autoplay muted class="block max-w-full max-h-[75vh]"></video>
+                    <video id="crop-source-video" autoplay muted class="block max-w-full max-h-[80vh] opacity-100"></video>
                     
                     <!-- Draggable Crop Box -->
-                    <div id="crop-box" class="absolute hidden" style="top: 0; left: 0; width: 100%; height: 100%;">
-                        <!-- Handles are only visible in editing mode -->
+                    <div id="crop-box" class="absolute hidden" style="top: 10%; left: 10%; width: 50%; height: 50%;">
                         <div class="resize-handle handle-nw" data-dir="nw"></div>
                         <div class="resize-handle handle-ne" data-dir="ne"></div>
                         <div class="resize-handle handle-sw" data-dir="sw"></div>
                         <div class="resize-handle handle-se" data-dir="se"></div>
                         
-                        <!-- Center Crosshair (Visual Aid) -->
-                        <div class="absolute top-1/2 left-1/2 w-4 h-4 -mt-2 -ml-2 border-t border-l border-white/50 opacity-50 pointer-events-none"></div>
+                        <!-- Size Label on Box -->
+                        <div class="absolute -top-8 left-0 bg-white text-black text-[10px] font-bold px-2 py-1 rounded shadow-sm opacity-90">
+                            Serbest Alan
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
 
         <!-- VIEW 1: Setup Panel -->
-        <div id="setup-panel" class="w-full max-w-lg bg-slate-900 rounded-2xl p-8 border border-slate-800 shadow-2xl relative overflow-hidden">
-            <div class="absolute -top-24 -right-24 w-48 h-48 bg-red-500/10 rounded-full blur-3xl"></div>
-            <div class="absolute -bottom-24 -left-24 w-48 h-48 bg-orange-500/10 rounded-full blur-3xl"></div>
+        <div id="setup-panel" class="w-full max-w-[480px] glass rounded-3xl p-10 shadow-2xl relative overflow-hidden animate-fade-in">
+            <div class="absolute -top-32 -right-32 w-64 h-64 bg-indigo-500/20 rounded-full blur-[80px]"></div>
+            <div class="absolute -bottom-32 -left-32 w-64 h-64 bg-rose-500/20 rounded-full blur-[80px]"></div>
             
-            <h2 class="text-2xl font-bold text-white mb-2 relative z-10 text-center">RecMaster Lite</h2>
-            <p class="text-slate-400 text-sm mb-6 relative z-10 text-center">Ekranınızı seçin, formatı ayarlayın ve kaydedin.</p>
+            <div class="text-center mb-8 relative z-10">
+                <h2 class="text-3xl font-bold text-white mb-2 tracking-tight">Yeni Kayıt</h2>
+                <p class="text-slate-400 text-sm">Ses ve görüntü kaynaklarınızı seçin.</p>
+            </div>
 
             <div class="space-y-4 relative z-10">
                 <!-- Toggle Group -->
                 <div class="grid grid-cols-2 gap-4">
-                    <label class="cursor-pointer bg-slate-800 hover:bg-slate-750 border border-slate-700 rounded-xl p-4 flex flex-col items-center justify-center gap-2 transition-all hover:border-red-500/30">
-                        <i class="fa-solid fa-microphone text-2xl text-slate-400 mb-1" id="icon-mic"></i>
-                        <span class="text-sm font-medium">Mikrofon</span>
-                        <input type="checkbox" id="mic-toggle" class="accent-red-500 mt-1">
+                    <label class="cursor-pointer bg-slate-800/40 hover:bg-slate-800/60 border border-white/5 rounded-2xl p-5 flex flex-col items-center justify-center gap-3 transition-all group">
+                        <div class="w-12 h-12 rounded-full bg-slate-700/50 flex items-center justify-center group-hover:bg-indigo-500/20 transition-colors">
+                            <i class="fa-solid fa-microphone text-xl text-slate-400 group-hover:text-indigo-400 transition-colors" id="icon-mic"></i>
+                        </div>
+                        <div class="text-center">
+                            <span class="text-sm font-medium text-slate-200 block">Mikrofon</span>
+                            <span class="text-[10px] text-slate-500">Sesli Anlatım</span>
+                        </div>
+                        <input type="checkbox" id="mic-toggle" class="accent-indigo-500 w-5 h-5 mt-1 border-white/10 bg-slate-900/50">
                     </label>
 
-                    <label class="cursor-pointer bg-slate-800 hover:bg-slate-750 border border-slate-700 rounded-xl p-4 flex flex-col items-center justify-center gap-2 transition-all hover:border-red-500/30">
-                        <i class="fa-solid fa-camera text-2xl text-slate-400 mb-1" id="icon-cam"></i>
-                        <span class="text-sm font-medium">Yüz Kamerası</span>
-                        <input type="checkbox" id="cam-toggle" class="accent-red-500 mt-1">
+                    <label class="cursor-pointer bg-slate-800/40 hover:bg-slate-800/60 border border-white/5 rounded-2xl p-5 flex flex-col items-center justify-center gap-3 transition-all group">
+                        <div class="w-12 h-12 rounded-full bg-slate-700/50 flex items-center justify-center group-hover:bg-rose-500/20 transition-colors">
+                            <i class="fa-solid fa-video text-xl text-slate-400 group-hover:text-rose-400 transition-colors" id="icon-cam"></i>
+                        </div>
+                        <div class="text-center">
+                            <span class="text-sm font-medium text-slate-200 block">Webcam</span>
+                            <span class="text-[10px] text-slate-500">Görüntülü</span>
+                        </div>
+                        <input type="checkbox" id="cam-toggle" class="accent-rose-500 w-5 h-5 mt-1 border-white/10 bg-slate-900/50">
                     </label>
                 </div>
 
-                <div class="bg-slate-800/50 p-3 rounded-lg border border-slate-700/50 text-xs text-slate-400 flex items-start gap-2">
-                    <i class="fa-solid fa-circle-info mt-0.5 text-blue-400"></i>
-                    <span>Sonraki adımda kayıt alanını (Shorts, Tam Ekran vb.) canlı önizleme üzerinde ayarlayabileceksiniz.</span>
-                </div>
-
-                <button id="init-btn" class="w-full bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-500 hover:to-orange-500 text-white font-bold py-4 rounded-xl shadow-lg shadow-red-900/20 transform transition-all active:scale-[0.98] mt-2 flex items-center justify-center gap-2">
-                    <i class="fa-solid fa-desktop"></i>
-                    Ekranı Seç ve Ayarla
+                <button id="init-btn" class="w-full bg-white text-slate-950 hover:bg-slate-200 font-bold py-4 rounded-xl shadow-xl transform transition-all active:scale-[0.98] mt-4 flex items-center justify-center gap-3 text-base">
+                    <span>Ekranı Seç & Başla</span>
+                    <i class="fa-solid fa-arrow-right text-slate-400"></i>
                 </button>
             </div>
         </div>
 
         <!-- Recording Status Bar (Floating) -->
-        <div id="recording-status" class="hidden absolute top-6 left-1/2 transform -translate-x-1/2 bg-slate-900/90 backdrop-blur border border-slate-700 pr-2 pl-6 py-2 rounded-full flex items-center gap-6 shadow-2xl z-[80]">
+        <div id="recording-status" class="hidden absolute top-8 left-1/2 transform -translate-x-1/2 bg-slate-900/90 backdrop-blur-md border border-white/10 pr-2 pl-6 py-2 rounded-full flex items-center gap-6 shadow-2xl z-[80]">
             <div class="flex items-center gap-3">
-                <div class="w-3 h-3 bg-red-500 rounded-full recording-pulse"></div>
-                <span class="font-mono text-xl w-24 tracking-wider" id="timer">00:00</span>
+                <div class="relative flex h-3 w-3">
+                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                  <span class="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                </div>
+                <span class="font-mono text-xl w-20 tracking-wider font-bold" id="timer">00:00</span>
             </div>
-            <div class="h-6 w-px bg-slate-700"></div>
+            <div class="h-6 w-px bg-white/10"></div>
             <div class="flex gap-2">
-                <button id="pause-btn" class="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-yellow-500 flex items-center justify-center transition-colors" title="Duraklat">
+                <button id="pause-btn" class="w-9 h-9 rounded-full bg-white/5 hover:bg-white/10 text-yellow-500 flex items-center justify-center transition-colors border border-white/5" title="Duraklat">
                     <i class="fa-solid fa-pause text-xs"></i>
                 </button>
-                <button id="stop-btn-top" class="w-8 h-8 rounded-full bg-red-600 hover:bg-red-500 text-white flex items-center justify-center shadow-lg transition-colors" title="Bitir">
+                <button id="stop-btn-top" class="w-9 h-9 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center shadow-lg transition-colors" title="Bitir">
                     <i class="fa-solid fa-stop text-xs"></i>
                 </button>
             </div>
         </div>
 
         <!-- VIEW 2: Result & Download Panel -->
-        <div id="result-panel" class="hidden w-full h-full flex flex-col items-center justify-center gap-6 animate-fade-in z-30 bg-slate-950 p-6">
+        <div id="result-panel" class="hidden w-full h-full flex flex-col items-center justify-center gap-8 animate-fade-in z-30 p-6 relative">
             
             <!-- Video Preview Container -->
-            <div class="w-full max-w-4xl bg-black rounded-xl overflow-hidden shadow-2xl border border-slate-800 relative group" style="max-height: 70vh;">
-                <video id="preview-video" class="w-full h-full object-contain" controls></video>
-                <div class="absolute top-4 left-4 bg-black/60 px-3 py-1 rounded text-xs backdrop-blur-sm text-white border border-white/10 pointer-events-none">
-                    Sonuç Önizleme
+            <div class="w-full max-w-5xl bg-black rounded-2xl overflow-hidden shadow-2xl border border-white/10 relative group ring-1 ring-white/5 aspect-video flex items-center justify-center bg-zinc-900">
+                <video id="preview-video" class="max-w-full max-h-full" controls></video>
+                <div class="absolute top-6 left-6 bg-black/50 px-3 py-1.5 rounded-full text-xs backdrop-blur-md text-white border border-white/10 pointer-events-none font-medium flex items-center gap-2">
+                    <div class="w-2 h-2 bg-green-500 rounded-full"></div> Önizleme
                 </div>
             </div>
 
             <!-- Download Options -->
-            <div class="w-full max-w-4xl flex flex-col md:flex-row items-center justify-between gap-4 bg-slate-900 p-4 rounded-xl border border-slate-800">
-                <div class="text-sm text-slate-400">
-                    <span class="block text-white font-bold mb-1">Kayıt Tamamlandı!</span>
-                    Format seçerek videonuzu indirin.
+            <div class="w-full max-w-5xl glass p-6 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-6">
+                <div>
+                    <h3 class="text-white font-bold text-lg mb-1">Kayıt Başarılı!</h3>
+                    <p class="text-slate-400 text-sm">Videonuzu istediğiniz formatta indirebilirsiniz.</p>
                 </div>
                 
                 <div class="flex items-center gap-3 w-full md:w-auto">
-                    <button id="download-mp4" class="flex-1 md:flex-none bg-blue-600 hover:bg-blue-500 text-white px-6 py-3 rounded-lg font-medium flex items-center justify-center gap-2 transition-transform hover:-translate-y-0.5">
-                        <i class="fa-brands fa-windows"></i> MP4 İndir
+                    <button id="download-mp4" class="flex-1 md:flex-none bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all shadow-lg shadow-indigo-500/20">
+                        <i class="fa-brands fa-windows text-indigo-200"></i> MP4 İndir
                     </button>
-                    <button id="download-webm" class="flex-1 md:flex-none bg-slate-700 hover:bg-slate-600 text-white px-6 py-3 rounded-lg font-medium flex items-center justify-center gap-2 transition-transform hover:-translate-y-0.5">
-                        <i class="fa-brands fa-chrome"></i> WebM İndir
+                    <button id="download-webm" class="flex-1 md:flex-none bg-slate-800 hover:bg-slate-700 text-white border border-white/10 px-6 py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all">
+                        <i class="fa-brands fa-chrome text-slate-400"></i> WebM İndir
                     </button>
-                    <div class="w-px h-8 bg-slate-700 mx-2 hidden md:block"></div>
-                    <button id="new-record-btn" class="bg-transparent hover:bg-slate-800 text-slate-400 hover:text-white px-4 py-3 rounded-lg transition-colors" title="Yeni Kayıt">
+                    <div class="w-px h-8 bg-white/10 mx-2 hidden md:block"></div>
+                    <button id="new-record-btn" class="bg-transparent hover:bg-white/5 text-slate-400 hover:text-white px-4 py-3 rounded-xl transition-colors" title="Sil ve Yeni Kayıt">
                         <i class="fa-solid fa-trash-can text-lg"></i>
                     </button>
                 </div>
@@ -275,30 +303,20 @@
 
     <script>
         /**
-         * RecMaster Lite Logic
+         * RecMaster Modern Logic
          */
         
-        // --- Variables ---
         let mediaRecorder;
         let recordedChunks = [];
         let recordedBlobUrl = null;
         let timerInt;
         let totalSeconds = 0;
         let isPaused = false;
-        let selectedFormat = 'fullscreen'; // fullscreen, shorts, square, custom
+        let isCropMode = false;
         
-        // Cropping State
-        let cropState = {
-            sx: 0, sy: 0, sw: 0, sh: 0, // Source coordinates
-            scaleFactor: 1
-        };
-        
-        let streams = {
-            display: null,
-            user: null
-        };
+        let cropState = { sx: 0, sy: 0, sw: 0, sh: 0 };
+        let streams = { display: null, user: null };
 
-        // --- Elements ---
         const els = {
             setupPanel: document.getElementById('setup-panel'),
             resultPanel: document.getElementById('result-panel'),
@@ -324,117 +342,90 @@
             iconCam: document.getElementById('icon-cam')
         };
 
-        // --- UI Interactions ---
+        // UI Toggles
         els.micToggle.addEventListener('change', (e) => {
-            els.iconMic.className = e.target.checked ? "fa-solid fa-microphone text-2xl text-white mb-1" : "fa-solid fa-microphone text-2xl text-slate-400 mb-1";
+            els.iconMic.className = e.target.checked ? "fa-solid fa-microphone text-xl text-indigo-400 transition-colors" : "fa-solid fa-microphone text-xl text-slate-400 transition-colors";
         });
         els.camToggle.addEventListener('change', (e) => {
-            els.iconCam.className = e.target.checked ? "fa-solid fa-camera text-2xl text-white mb-1" : "fa-solid fa-camera text-2xl text-slate-400 mb-1";
+            els.iconCam.className = e.target.checked ? "fa-solid fa-video text-xl text-rose-400 transition-colors" : "fa-solid fa-video text-xl text-slate-400 transition-colors";
         });
 
-        // Format Selection Logic
-        document.querySelectorAll('.format-btn').forEach(btn => {
+        // Mode Switching (Fullscreen vs Custom Crop)
+        document.querySelectorAll('.segment-btn').forEach(btn => {
             btn.addEventListener('click', () => {
-                document.querySelectorAll('.format-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.segment-btn').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
                 
-                selectedFormat = btn.dataset.format;
-                updateCropBoxFromFormat(); // Format değişince kutuyu güncelle
+                const mode = btn.dataset.mode;
+                isCropMode = (mode === 'custom');
+                
+                if (isCropMode) {
+                    els.cropBox.classList.remove('hidden');
+                    updateCropLabels();
+                } else {
+                    els.cropBox.classList.add('hidden');
+                    // Reset to full
+                    const vidW = els.cropSourceVideo.videoWidth;
+                    const vidH = els.cropSourceVideo.videoHeight;
+                    cropState = { sx: 0, sy: 0, sw: vidW, sh: vidH };
+                    els.cropSizeInfo.innerText = `${vidW}x${vidH}`;
+                }
             });
         });
 
-        // --- STEP 1: Initialize Stream & Open Preview ---
+        // --- STEP 1: Init Stream ---
         els.initBtn.onclick = async () => {
             const useMic = els.micToggle.checked;
             const useCam = els.camToggle.checked;
 
             try {
-                // 1. Get Screen Stream
                 streams.display = await navigator.mediaDevices.getDisplayMedia({ 
                     video: { frameRate: 60, width: { ideal: 1920 }, height: { ideal: 1080 } }, 
                     audio: true 
                 });
 
-                // 2. Get User Stream
                 if (useMic || useCam) {
                     try {
                         streams.user = await navigator.mediaDevices.getUserMedia({ 
                             audio: useMic, 
                             video: useCam ? { width: 320, height: 240 } : false 
                         });
-                    } catch (err) {
-                        alert("Kamera/Mikrofon izni alınamadı.");
-                    }
+                    } catch (err) { alert("Medya izni alınamadı."); }
                 }
 
                 els.setupPanel.classList.add('hidden');
-                setupCropUI(); // Direkt Önizlemeyi Aç
+                setupCropUI();
 
             } catch (err) {
-                console.warn("Cancelled:", err);
+                console.warn(err);
                 els.setupPanel.classList.remove('hidden');
             }
         };
 
-        // --- Crop UI Logic ---
+        // --- Preview Logic ---
         function setupCropUI() {
             els.cropOverlay.classList.remove('hidden');
             els.cropSourceVideo.srcObject = streams.display;
             
             els.cropSourceVideo.onloadedmetadata = () => {
-                updateCropBoxFromFormat();
+                // Default Crop Box Size (50%)
+                const vidW = els.cropSourceVideo.videoWidth;
+                const vidH = els.cropSourceVideo.videoHeight;
+                const contW = els.cropSourceVideo.offsetWidth;
+                const scale = contW / vidW;
+                
+                const boxW = contW * 0.5;
+                const boxH = (vidH * scale) * 0.5;
+                
+                els.cropBox.style.width = `${boxW}px`;
+                els.cropBox.style.height = `${boxH}px`;
+                els.cropBox.style.left = `${(contW - boxW)/2}px`;
+                els.cropBox.style.top = `${((vidH * scale) - boxH)/2}px`;
+                
+                // Initialize state as fullscreen first
+                cropState = { sx: 0, sy: 0, sw: vidW, sh: vidH };
+                els.cropSizeInfo.innerText = `${vidW}x${vidH}`;
             };
-        }
-
-        // Apply Format Dimensions to Crop Box
-        function updateCropBoxFromFormat() {
-            if (!els.cropSourceVideo.videoWidth) return;
-
-            const vidW = els.cropSourceVideo.videoWidth;
-            const vidH = els.cropSourceVideo.videoHeight;
-            
-            // Container visual dimensions
-            const containerW = els.cropSourceVideo.offsetWidth;
-            const containerH = els.cropSourceVideo.offsetHeight;
-            const scale = containerW / vidW; // Scale ratio for visual elements
-            
-            // Eğer tam ekransa kutuyu gizle
-            if (selectedFormat === 'fullscreen') {
-                els.cropBox.classList.add('hidden');
-                updateCropLabels(); // Full size güncelle
-                return;
-            } else {
-                els.cropBox.classList.remove('hidden');
-            }
-
-            // Calculate Target Size (in video pixels)
-            let boxW, boxH;
-
-            if (selectedFormat === 'shorts') { // 9:16
-                boxH = vidH * 0.9;
-                boxW = boxH * (9/16);
-            } else if (selectedFormat === 'square') { // 1:1
-                boxH = vidH * 0.8;
-                boxW = boxH;
-            } else { // Custom (Default to 50%)
-                boxW = vidW * 0.5;
-                boxH = vidH * 0.5;
-            }
-
-            // Convert to Display Pixels
-            const dispW = boxW * scale;
-            const dispH = boxH * scale;
-
-            // Center it
-            const left = (containerW - dispW) / 2;
-            const top = (containerH - dispH) / 2;
-
-            els.cropBox.style.width = `${dispW}px`;
-            els.cropBox.style.height = `${dispH}px`;
-            els.cropBox.style.left = `${left}px`;
-            els.cropBox.style.top = `${top}px`;
-
-            updateCropLabels();
         }
 
         // Draggable Logic
@@ -444,8 +435,8 @@
         let startX, startY, startLeft, startTop, startW, startH;
 
         els.cropContainer.addEventListener('mousedown', (e) => {
+            if(!isCropMode) return;
             if (e.target.classList.contains('resize-handle')) {
-                if (selectedFormat !== 'custom') return;
                 isResizing = true;
                 resizeDir = e.target.dataset.dir;
                 startX = e.clientX; startY = e.clientY;
@@ -453,9 +444,7 @@
                 startLeft = els.cropBox.offsetLeft; startTop = els.cropBox.offsetTop;
                 e.preventDefault();
             } else if (e.target.id === 'crop-box' || els.cropBox.contains(e.target)) {
-                // Recording mode check: Don't drag if recording!
                 if(mediaRecorder && mediaRecorder.state === 'recording') return;
-                
                 isDraggingBox = true;
                 startX = e.clientX; startY = e.clientY;
                 startLeft = els.cropBox.offsetLeft; startTop = els.cropBox.offsetTop;
@@ -464,6 +453,7 @@
         });
 
         window.addEventListener('mousemove', (e) => {
+            if(!isCropMode) return;
             const containerRect = els.cropContainer.getBoundingClientRect();
             
             if (isDraggingBox) {
@@ -478,7 +468,6 @@
             } else if (isResizing) {
                 let dx = e.clientX - startX;
                 let dy = e.clientY - startY;
-                
                 if (resizeDir.includes('e')) els.cropBox.style.width = `${startW + dx}px`;
                 if (resizeDir.includes('s')) els.cropBox.style.height = `${startH + dy}px`;
                 updateCropLabels();
@@ -488,26 +477,19 @@
         window.addEventListener('mouseup', () => { isDraggingBox = false; isResizing = false; });
 
         function updateCropLabels() {
-            // Real video dims
             const vidW = els.cropSourceVideo.videoWidth;
             const containerW = els.cropSourceVideo.offsetWidth;
             const scale = vidW / containerW;
 
-            if (selectedFormat === 'fullscreen') {
-                cropState = { sx: 0, sy: 0, sw: vidW, sh: els.cropSourceVideo.videoHeight };
-                els.cropSizeInfo.innerText = `${vidW}x${els.cropSourceVideo.videoHeight}`;
-            } else {
-                cropState.sx = els.cropBox.offsetLeft * scale;
-                cropState.sy = els.cropBox.offsetTop * scale;
-                cropState.sw = els.cropBox.offsetWidth * scale;
-                cropState.sh = els.cropBox.offsetHeight * scale;
-                els.cropSizeInfo.innerText = `${Math.round(cropState.sw)}x${Math.round(cropState.sh)}`;
-            }
+            cropState.sx = els.cropBox.offsetLeft * scale;
+            cropState.sy = els.cropBox.offsetTop * scale;
+            cropState.sw = els.cropBox.offsetWidth * scale;
+            cropState.sh = els.cropBox.offsetHeight * scale;
+            els.cropSizeInfo.innerText = `${Math.round(cropState.sw)}x${Math.round(cropState.sh)}`;
         }
 
         // --- STEP 2: Start Recording ---
         els.startRecordingBtn.onclick = () => {
-            // Start Countdown
             els.countdownOverlay.classList.remove('hidden');
             let count = 3;
             els.countdownText.innerText = count;
@@ -523,22 +505,18 @@
         };
 
         async function beginRecording() {
-            // UI Transition
             els.statusBadge.innerText = "KAYITTA";
-            els.statusBadge.className = "text-xs px-3 py-1 rounded-full bg-red-900/50 border border-red-500 text-red-400 font-bold animate-pulse";
+            els.statusBadge.className = "text-[10px] uppercase tracking-wider px-2 py-1 rounded border border-red-500 text-red-400 font-bold animate-pulse bg-red-900/20";
             els.recordingStatus.classList.remove('hidden');
             
-            // Change Crop Box to "Recording Guide" Mode
-            if (selectedFormat !== 'fullscreen') {
+            // Visual Guide Mode
+            if (isCropMode) {
                 els.cropBox.classList.add('recording-mode');
-                // Hide handles
                 document.querySelectorAll('.resize-handle').forEach(h => h.classList.add('hidden'));
             } else {
-                // If fullscreen, ensure box is hidden
                 els.cropBox.classList.add('hidden');
             }
 
-            // Canvas & Video Setup
             const canvas = document.getElementById('compositor-canvas');
             const ctx = canvas.getContext('2d');
             const vScreen = document.getElementById('src-video-screen');
@@ -547,7 +525,6 @@
             vScreen.srcObject = streams.display;
             await vScreen.play();
 
-            // Set Canvas to Crop Size
             canvas.width = cropState.sw;
             canvas.height = cropState.sh;
 
@@ -557,11 +534,9 @@
             if(streams.display.getAudioTracks().length) ac.createMediaStreamSource(streams.display).connect(dest);
             if(streams.user && streams.user.getAudioTracks().length) {
                 const ms = ac.createMediaStreamSource(streams.user);
-                const g = ac.createGain(); g.gain.value = 1.5;
-                ms.connect(g).connect(dest);
+                ms.connect(ac.createGain()).connect(dest);
             }
 
-            // Draw Loop
             const useCam = els.camToggle.checked;
             if (useCam && streams.user) {
                 vCam.srcObject = streams.user;
@@ -578,10 +553,9 @@
                     0, 0, canvas.width, canvas.height
                 );
 
-                // Facecam Logic (Relative to crop)
                 if (useCam && streams.user) {
-                    const size = canvas.height * 0.2; 
-                    const m = 20;
+                    const size = canvas.height * 0.25; 
+                    const m = 30;
                     const x = canvas.width - size - m;
                     const y = canvas.height - size - m;
                     ctx.save();
@@ -589,14 +563,13 @@
                     ctx.arc(x+size/2, y+size/2, size/2, 0, Math.PI*2);
                     ctx.clip();
                     ctx.drawImage(vCam, x, y, size, size);
-                    ctx.strokeStyle = "#fff"; ctx.lineWidth = 3; ctx.stroke();
+                    ctx.strokeStyle = "white"; ctx.lineWidth = 4; ctx.stroke();
                     ctx.restore();
                 }
                 requestAnimationFrame(draw);
             }
             draw();
 
-            // Record
             const finalStream = canvas.captureStream(60);
             if(dest.stream.getAudioTracks().length) finalStream.addTrack(dest.stream.getAudioTracks()[0]);
 
@@ -614,12 +587,9 @@
                 finalize();
             };
             
-            // Native stop
             streams.display.getVideoTracks()[0].onended = () => mediaRecorder.stop();
-
             mediaRecorder.start();
             
-            // Timer
             totalSeconds = 0;
             clearInterval(timerInt);
             timerInt = setInterval(() => {
@@ -632,7 +602,6 @@
             }, 1000);
         }
 
-        // --- Controls ---
         els.stopBtn.onclick = () => mediaRecorder.stop();
         els.pauseBtn.onclick = () => {
             if(mediaRecorder.state === "recording") {
@@ -649,10 +618,9 @@
         function finalize() {
             clearInterval(timerInt);
             els.recordingStatus.classList.add('hidden');
-            els.cropOverlay.classList.add('hidden'); // Kılavuz ekranını kapat
+            els.cropOverlay.classList.add('hidden');
             els.resultPanel.classList.remove('hidden');
             els.statusBadge.innerText = "TAMAMLANDI";
-            els.statusBadge.className = "text-xs px-3 py-1 rounded-full bg-green-900/50 border border-green-500 text-green-400 font-bold";
             
             const blob = new Blob(recordedChunks, { type: mediaRecorder.mimeType });
             recordedBlobUrl = URL.createObjectURL(blob);
@@ -663,7 +631,7 @@
             if(!recordedBlobUrl) return;
             const a = document.createElement('a');
             a.href = recordedBlobUrl;
-            a.download = `RecMaster_${selectedFormat}_${Date.now()}.${ext}`;
+            a.download = `RecMaster_${Date.now()}.${ext}`;
             document.body.appendChild(a); a.click(); document.body.removeChild(a);
         }
         
