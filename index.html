@@ -47,7 +47,7 @@
             user-select: none;
             touch-action: none;
             overflow: hidden;
-            cursor: crosshair; /* Default for drawing potential */
+            cursor: crosshair;
         }
         #crop-box {
             box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.75); 
@@ -56,7 +56,7 @@
             outline: 2px solid rgba(255, 255, 255, 0.8);
             border-radius: 4px;
             display: block; 
-            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); /* Smooth resize for mode switch */
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
         }
         #crop-box.recording-mode {
             box-shadow: none;
@@ -76,7 +76,7 @@
             width: 100% !important;
             height: 100% !important;
             cursor: default;
-            outline: 2px solid rgba(74, 222, 128, 0.5); /* Greenish hint for full screen */
+            outline: 2px solid rgba(74, 222, 128, 0.5);
             border-radius: 0;
         }
         #crop-box.fullscreen-mode .resize-handle {
@@ -161,7 +161,7 @@
             transform: translate(-50%, 20px) !important;
         }
 
-        /* Webcam Preview Layer inside Crop Box */
+        /* Webcam Preview Layer */
         #webcam-preview-layer {
             position: absolute;
             z-index: 25;
@@ -170,7 +170,7 @@
             border: 2px solid white;
             transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
             background: #000;
-            pointer-events: auto; /* Allow dragging if needed in future, but parent handles it */
+            pointer-events: auto;
         }
         #webcam-preview-layer video {
             width: 100%;
@@ -186,8 +186,8 @@
             left: 0;
             width: 100%;
             height: 100%;
-            z-index: 50; /* En üstte olmalı (Crop box 20, Handles 30) */
-            pointer-events: none; /* Let clicks pass unless drawing mode */
+            z-index: 50; /* Resize handles (30) üzerinde */
+            pointer-events: none; /* Default: click-through */
         }
         #drawing-canvas-layer.active {
             pointer-events: auto;
@@ -199,7 +199,7 @@
         .color-btn:hover { transform: scale(1.1); }
         .color-btn.active { border-color: white; transform: scale(1.2); box-shadow: 0 0 0 2px rgba(255,255,255,0.2); }
         
-        /* Cam Positions relative to crop box */
+        /* Cam Positions */
         .cam-pos-top-left { top: 20px; left: 20px; }
         .cam-pos-top-right { top: 20px; right: 20px; }
         .cam-pos-bottom-left { bottom: 20px; left: 20px; }
@@ -239,19 +239,19 @@
     <main class="flex-1 flex overflow-hidden relative items-center justify-center p-6 z-10">
         
         <!-- Toast Notification -->
-        <div id="toast" class="hidden absolute top-6 right-6 bg-slate-900/95 border border-slate-700 text-white px-5 py-3 rounded-xl shadow-2xl z-[90] flex items-center animate-fade-in text-sm font-medium backdrop-blur transition-all duration-300">
+        <div id="toast" class="hidden absolute top-6 right-6 bg-slate-900/95 border border-slate-700 text-white px-5 py-3 rounded-xl shadow-2xl z-[120] flex items-center animate-fade-in text-sm font-medium backdrop-blur transition-all duration-300">
             <i class="fa-solid fa-circle-info text-indigo-400 mr-3 text-lg"></i> <span id="toast-msg">Mesaj</span>
         </div>
         
         <!-- Countdown Overlay -->
-        <div id="countdown-overlay" class="hidden absolute inset-0 bg-black/80 backdrop-blur-md z-[80] flex items-center justify-center">
+        <div id="countdown-overlay" class="hidden absolute inset-0 bg-black/80 backdrop-blur-md z-[110] flex items-center justify-center">
             <div class="text-9xl font-black text-white animate-pulse tabular-nums tracking-tighter" id="countdown-text">3</div>
         </div>
 
-        <!-- Crop/Area Selection Overlay (Preview Mode) -->
+        <!-- Crop/Area Selection Overlay -->
         <div id="crop-overlay" class="hidden absolute inset-0 bg-slate-950 z-[60] flex flex-col animate-fade-in">
-            <!-- Toolbar -->
-            <div class="h-20 border-b border-white/5 bg-slate-900/90 flex items-center justify-between px-8 shrink-0 z-50 backdrop-blur-xl">
+            <!-- Toolbar (Gizlenebilir) -->
+            <div id="crop-toolbar" class="h-20 border-b border-white/5 bg-slate-900/90 flex items-center justify-between px-8 shrink-0 z-50 backdrop-blur-xl transition-transform duration-300">
                 
                 <div class="flex items-center gap-6">
                     <div class="flex flex-col">
@@ -390,7 +390,7 @@
         </div>
 
         <!-- Recording Status Bar & Drawing Tools -->
-        <div id="recording-status" class="hidden fixed top-8 left-1/2 transform -translate-x-1/2 bg-slate-900/90 backdrop-blur-md border border-white/10 pr-4 pl-6 py-2.5 rounded-full flex items-center gap-6 shadow-2xl z-[100] transition-all duration-500 ease-in-out">
+        <div id="recording-status" class="hidden fixed top-8 left-1/2 transform -translate-x-1/2 bg-slate-900/90 backdrop-blur-md border border-white/10 pr-4 pl-6 py-2.5 rounded-full flex items-center gap-6 shadow-2xl z-[999] transition-all duration-500 ease-in-out">
             <div class="flex items-center gap-3">
                 <div class="relative flex h-3 w-3">
                   <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" id="rec-dot-anim"></span>
@@ -511,6 +511,7 @@
             countdownOverlay: document.getElementById('countdown-overlay'),
             countdownText: document.getElementById('countdown-text'),
             cropOverlay: document.getElementById('crop-overlay'),
+            cropToolbar: document.getElementById('crop-toolbar'), // Added ID
             cropSourceVideo: document.getElementById('crop-source-video'),
             cropBox: document.getElementById('crop-box'),
             cropSizeInfo: document.getElementById('crop-size-info'),
@@ -598,7 +599,6 @@
             if (isCropMode) {
                 // Custom Mode: Enable sizing
                 els.cropBox.classList.remove('fullscreen-mode');
-                // Restore Custom Size (e.g. 80%)
                 const contW = els.cropSourceVideo.offsetWidth;
                 const contH = els.cropSourceVideo.offsetHeight;
                 els.cropBox.style.width = `${contW * 0.8}px`;
@@ -752,8 +752,6 @@
             const ctx = canvas.getContext('2d');
             
             // Clear needed for mouse highlight animation or if we redraw paths
-            // Note: If we clear, we must redraw all paths. 
-            // Simple approach: Clear everything and redraw persistent paths + mouse highlight.
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             
             // 1. Draw Saved Paths
@@ -770,7 +768,7 @@
                 ctx.stroke();
             });
             
-            // 2. Draw Current Stroke (already handled by mousemove, but if we clear, we must redraw it)
+            // 2. Draw Current Stroke
             if (isDrawing && currentPath.length > 0) {
                 ctx.beginPath();
                 ctx.strokeStyle = drawColor;
@@ -798,6 +796,15 @@
             
             requestAnimationFrame(renderVisualFeedback);
         }
+        
+        // Window-level mouse tracking for reliable highlight
+        window.addEventListener('mousemove', (e) => {
+            if(!els.drawingCanvasLayer) return;
+            const rect = els.drawingCanvasLayer.getBoundingClientRect();
+            // Calculate position relative to canvas
+            mousePos.x = e.clientX - rect.left;
+            mousePos.y = e.clientY - rect.top;
+        });
 
         // --- STEP 1: Init Stream ---
         els.initBtn.onclick = async () => {
@@ -980,6 +987,9 @@
             els.recordingStatus.classList.remove('hidden');
             els.recordingStatus.classList.remove('ui-hidden'); 
             
+            // Hide the Setup Toolbar so Recording Toolbar is clearly visible
+            els.cropToolbar.classList.add('hidden');
+            
             // Toggle Main Button State
             const btnText = els.startRecordingBtn.querySelector('.btn-text');
             if(btnText) btnText.innerText = "KAYDI DURDUR";
@@ -1077,7 +1087,7 @@
                     
                     if (cx >= 0 && cx <= canvas.width && cy >= 0 && cy <= canvas.height) {
                         ctx.save();
-                        ctx.fillStyle = "rgba(250, 204, 21, 0.4)";
+                        ctx.fillStyle = "rgba(250, 204, 21, 0.4)"; // Yellow transparent
                         ctx.beginPath();
                         ctx.arc(cx, cy, 20, 0, Math.PI * 2);
                         ctx.fill();
@@ -1200,6 +1210,7 @@
             clearInterval(timerInt);
             updatePageTitle();
             
+            els.cropToolbar.classList.remove('hidden'); // Show setup toolbar again
             els.recordingStatus.classList.add('hidden');
             els.cropOverlay.classList.add('hidden');
             els.resultPanel.classList.remove('hidden');
