@@ -54,6 +54,8 @@
             z-index: 20;
             outline: 2px solid rgba(255, 255, 255, 0.8);
             border-radius: 4px;
+            /* Flex layout to position internal webcam container */
+            display: block; 
         }
         #crop-box.recording-mode {
             box-shadow: none;
@@ -73,20 +75,21 @@
         }
 
         .resize-handle {
-            width: 10px;
-            height: 10px;
+            width: 12px;
+            height: 12px;
             background-color: white;
             border: 2px solid #ef4444;
             position: absolute;
             border-radius: 50%;
             z-index: 30;
             transition: transform 0.1s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
         }
-        .resize-handle:hover { transform: scale(1.5); }
-        .handle-nw { top: -5px; left: -5px; cursor: nw-resize; }
-        .handle-ne { top: -5px; right: -5px; cursor: ne-resize; }
-        .handle-sw { bottom: -5px; left: -5px; cursor: sw-resize; }
-        .handle-se { bottom: -5px; right: -5px; cursor: se-resize; }
+        .resize-handle:hover { transform: scale(1.5); background-color: #ef4444; }
+        .handle-nw { top: -6px; left: -6px; cursor: nw-resize; }
+        .handle-ne { top: -6px; right: -6px; cursor: ne-resize; }
+        .handle-sw { bottom: -6px; left: -6px; cursor: sw-resize; }
+        .handle-se { bottom: -6px; right: -6px; cursor: se-resize; }
 
         /* Segmented Control */
         .segmented-control {
@@ -131,9 +134,10 @@
             width: 100%;
             height: 100%;
             border: 1px solid transparent;
+            transition: all 0.2s;
         }
         .cam-pos-btn:hover { background-color: #475569; }
-        .cam-pos-btn.active { background-color: #f8fafc; border-color: #94a3b8; }
+        .cam-pos-btn.active { background-color: #f8fafc; border-color: #94a3b8; box-shadow: 0 0 4px rgba(255,255,255,0.3); }
         
         /* Hidden UI State */
         .ui-hidden {
@@ -141,6 +145,30 @@
             pointer-events: none;
             transform: translate(-50%, 20px) !important;
         }
+
+        /* Webcam Preview Layer inside Crop Box */
+        #webcam-preview-layer {
+            position: absolute;
+            z-index: 25;
+            overflow: hidden;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+            border: 2px solid white;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            background: #000;
+            pointer-events: none; /* Let clicks pass to drag crop box */
+        }
+        #webcam-preview-layer video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1); /* Mirror effect */
+        }
+        
+        /* Cam Positions relative to crop box */
+        .cam-pos-top-left { top: 20px; left: 20px; }
+        .cam-pos-top-right { top: 20px; right: 20px; }
+        .cam-pos-bottom-left { bottom: 20px; left: 20px; }
+        .cam-pos-bottom-right { bottom: 20px; right: 20px; }
     </style>
 </head>
 <body class="bg-slate-950 text-slate-200 font-sans h-screen flex flex-col overflow-hidden select-none bg-[url('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=2564&auto=format&fit=crop')] bg-cover bg-center">
@@ -151,17 +179,24 @@
     <!-- Header -->
     <header class="h-16 flex items-center px-6 justify-between shrink-0 z-50 relative border-b border-white/5 bg-slate-950/50 backdrop-blur-md">
         <div class="flex items-center gap-3">
-            <div class="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center border border-white/10">
-                <i class="fa-solid fa-record-vinyl text-red-500"></i>
+            <div class="w-9 h-9 bg-white/5 rounded-xl flex items-center justify-center border border-white/10 shadow-inner">
+                <i class="fa-solid fa-record-vinyl text-red-500 text-lg"></i>
             </div>
-            <h1 class="font-bold text-lg tracking-tight text-white">RecMaster</h1>
+            <div>
+                <h1 class="font-bold text-lg tracking-tight text-white leading-tight">RecMaster</h1>
+                <p class="text-[10px] text-slate-500 font-medium">Ultimate Screen Recorder</p>
+            </div>
         </div>
         <div class="flex items-center gap-4">
-            <div id="keyboard-hint" class="hidden md:flex gap-3 text-[10px] text-slate-500 font-mono">
-                <span class="bg-white/5 px-2 py-1 rounded border border-white/5">F9: Duraklat</span>
-                <span class="bg-white/5 px-2 py-1 rounded border border-white/5">F10: Bitir</span>
+            <div id="keyboard-hint" class="hidden md:flex gap-2 text-[10px] text-slate-500 font-mono items-center">
+                <div class="flex items-center gap-1 bg-white/5 px-2 py-1 rounded border border-white/5">
+                    <kbd class="font-sans">F9</kbd> Duraklat
+                </div>
+                <div class="flex items-center gap-1 bg-white/5 px-2 py-1 rounded border border-white/5">
+                    <kbd class="font-sans">F10</kbd> Bitir
+                </div>
             </div>
-            <div id="status-badge" class="text-[10px] uppercase tracking-wider px-2 py-1 rounded border border-slate-700 text-slate-400 font-bold">Hazır</div>
+            <div id="status-badge" class="text-[10px] uppercase tracking-wider px-3 py-1 rounded-full border border-slate-700 text-slate-400 font-bold bg-slate-900/50">Hazır</div>
         </div>
     </header>
 
@@ -169,76 +204,81 @@
     <main class="flex-1 flex overflow-hidden relative items-center justify-center p-6 z-10">
         
         <!-- Toast Notification -->
-        <div id="toast" class="hidden absolute top-6 right-6 bg-slate-900 border border-slate-700 text-white px-4 py-3 rounded-lg shadow-2xl z-[90] flex items-center animate-fade-in text-sm font-medium transition-all duration-300">
-            <i class="fa-solid fa-circle-info text-blue-400 mr-3"></i> <span id="toast-msg">Mesaj</span>
+        <div id="toast" class="hidden absolute top-6 right-6 bg-slate-900/95 border border-slate-700 text-white px-5 py-3 rounded-xl shadow-2xl z-[90] flex items-center animate-fade-in text-sm font-medium backdrop-blur transition-all duration-300">
+            <i class="fa-solid fa-circle-info text-indigo-400 mr-3 text-lg"></i> <span id="toast-msg">Mesaj</span>
         </div>
         
         <!-- Countdown Overlay -->
         <div id="countdown-overlay" class="hidden absolute inset-0 bg-black/80 backdrop-blur-md z-[80] flex items-center justify-center">
-            <div class="text-9xl font-black text-white animate-pulse" id="countdown-text" style="font-variant-numeric: tabular-nums;">3</div>
+            <div class="text-9xl font-black text-white animate-pulse tabular-nums tracking-tighter" id="countdown-text">3</div>
         </div>
 
         <!-- Crop/Area Selection Overlay (Preview Mode) -->
         <div id="crop-overlay" class="hidden absolute inset-0 bg-slate-950 z-[60] flex flex-col animate-fade-in">
             <!-- Toolbar -->
-            <div class="h-16 border-b border-white/5 bg-slate-900/80 flex items-center justify-between px-6 shrink-0 z-50 backdrop-blur-md">
+            <div class="h-20 border-b border-white/5 bg-slate-900/90 flex items-center justify-between px-8 shrink-0 z-50 backdrop-blur-xl">
                 
-                <div class="flex items-center gap-4">
-                    <span class="text-sm font-medium text-slate-400 mr-2 hidden md:inline">Kayıt Alanı:</span>
-                    <div class="segmented-control">
-                        <button type="button" class="segment-btn active" data-mode="fullscreen">
-                            <i class="fa-solid fa-expand mr-1.5"></i> Tam Ekran
-                        </button>
-                        <button type="button" class="segment-btn" data-mode="custom">
-                            <i class="fa-solid fa-crop mr-1.5"></i> Kırp
-                        </button>
+                <div class="flex items-center gap-6">
+                    <div class="flex flex-col">
+                        <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Kayıt Modu</span>
+                        <div class="segmented-control">
+                            <button type="button" class="segment-btn active" data-mode="fullscreen">
+                                <i class="fa-solid fa-expand mr-2"></i> Tam Ekran
+                            </button>
+                            <button type="button" class="segment-btn" data-mode="custom">
+                                <i class="fa-solid fa-crop-simple mr-2"></i> Kırp
+                            </button>
+                        </div>
                     </div>
                 </div>
 
                 <!-- Dynamic Controls (Cam/Mic Status) -->
-                <div class="flex items-center gap-4">
+                <div class="flex items-center gap-6">
                     <!-- Audio Visualizer -->
-                    <div id="audio-preview" class="hidden items-center gap-2 border-r border-white/10 pr-4">
-                        <i class="fa-solid fa-microphone-lines text-slate-500 text-xs"></i>
-                        <div class="flex items-end gap-0.5 h-6">
-                            <div class="audio-meter h-2"></div>
-                            <div class="audio-meter h-3"></div>
-                            <div class="audio-meter h-5"></div>
-                            <div class="audio-meter h-3"></div>
-                            <div class="audio-meter h-2"></div>
+                    <div id="audio-preview" class="hidden items-center gap-3 border-r border-white/10 pr-6 h-10">
+                        <div class="flex flex-col items-end">
+                            <span class="text-[10px] uppercase text-slate-500 font-bold leading-none mb-1">Ses</span>
+                            <i class="fa-solid fa-microphone text-slate-400 text-xs"></i>
+                        </div>
+                        <div class="flex items-end gap-1 h-6">
+                            <div class="audio-meter h-2 w-1.5 rounded-sm"></div>
+                            <div class="audio-meter h-3 w-1.5 rounded-sm"></div>
+                            <div class="audio-meter h-5 w-1.5 rounded-sm"></div>
+                            <div class="audio-meter h-3 w-1.5 rounded-sm"></div>
+                            <div class="audio-meter h-2 w-1.5 rounded-sm"></div>
                         </div>
                     </div>
 
                     <!-- Camera Position Controls -->
-                    <div id="cam-controls" class="hidden items-center gap-3 border-r border-white/10 pr-4">
+                    <div id="cam-controls" class="hidden items-center gap-3 border-r border-white/10 pr-6 h-10">
                         <div class="flex flex-col items-end">
-                            <span class="text-[10px] uppercase text-slate-500 font-bold leading-none">Konum</span>
+                            <span class="text-[10px] uppercase text-slate-500 font-bold leading-none mb-1">Webcam</span>
+                            <span class="text-[10px] text-slate-400">Konum & Şekil</span>
                         </div>
-                        <div class="grid grid-cols-2 gap-1 w-8 h-8 bg-slate-800 rounded p-0.5" title="Kamera Konumu">
-                            <button class="cam-pos-btn" data-pos="top-left"></button>
-                            <button class="cam-pos-btn" data-pos="top-right"></button>
-                            <button class="cam-pos-btn" data-pos="bottom-left"></button>
-                            <button class="cam-pos-btn active" data-pos="bottom-right"></button>
+                        <div class="grid grid-cols-2 gap-1 w-8 h-8 bg-slate-800 rounded p-0.5 shadow-inner" title="Kamera Konumu">
+                            <button class="cam-pos-btn rounded-sm" data-pos="top-left"></button>
+                            <button class="cam-pos-btn rounded-sm" data-pos="top-right"></button>
+                            <button class="cam-pos-btn rounded-sm" data-pos="bottom-left"></button>
+                            <button class="cam-pos-btn active rounded-sm" data-pos="bottom-right"></button>
                         </div>
-                        <button id="cam-shape-btn" class="w-8 h-8 rounded bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center text-xs border border-white/5 transition-colors" title="Şekil Değiştir (Yuvarlak/Kare)">
+                        <button id="cam-shape-btn" class="w-8 h-8 rounded bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 flex items-center justify-center text-xs border border-white/5 transition-all shadow-sm" title="Şekil Değiştir">
                             <i class="fa-solid fa-circle"></i>
                         </button>
                     </div>
 
-                    <div class="h-8 w-px bg-white/10 hidden md:block"></div>
-                    <button id="start-recording-btn" class="bg-red-600 hover:bg-red-500 text-white px-6 py-2.5 rounded-lg text-sm font-bold shadow-lg shadow-red-900/20 flex items-center gap-2 transition-all hover:scale-105 active:scale-95 group">
-                        <span class="relative flex h-3 w-3 mr-1 group-data-[recording=true]:hidden">
-                          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                    <button id="start-recording-btn" class="bg-red-600 hover:bg-red-500 text-white pl-5 pr-6 py-3 rounded-xl text-sm font-bold shadow-lg shadow-red-900/40 flex items-center gap-3 transition-all hover:scale-105 active:scale-95 group border border-red-500">
+                        <span class="relative flex h-3 w-3 group-data-[recording=true]:hidden">
+                          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-300 opacity-75"></span>
                           <span class="relative inline-flex rounded-full h-3 w-3 bg-white"></span>
                         </span>
-                        <span class="btn-text">KAYDI BAŞLAT</span>
+                        <span class="btn-text tracking-wide">KAYDI BAŞLAT</span>
                     </button>
                 </div>
             </div>
 
             <!-- Canvas Container -->
             <div class="flex-1 relative bg-black/90 overflow-hidden flex items-center justify-center p-8">
-                <div id="crop-container" class="relative shadow-2xl ring-1 ring-white/10 rounded-lg overflow-hidden bg-black">
+                <div id="crop-container" class="relative shadow-2xl ring-1 ring-white/10 rounded-lg overflow-hidden bg-black max-w-full max-h-full">
                     <!-- Source Video Preview -->
                     <video id="crop-source-video" autoplay muted class="block max-w-full max-h-[80vh] opacity-100"></video>
                     
@@ -248,72 +288,87 @@
                         <div class="resize-handle handle-ne" data-dir="ne"></div>
                         <div class="resize-handle handle-sw" data-dir="sw"></div>
                         <div class="resize-handle handle-se" data-dir="se"></div>
-                        <div class="absolute -top-8 left-0 bg-white text-black text-[10px] font-bold px-2 py-1 rounded shadow-sm opacity-90">Serbest Alan</div>
+                        
+                        <!-- Webcam Preview Layer (Live) -->
+                        <div id="webcam-preview-layer" class="hidden w-32 h-32 rounded-full cam-pos-bottom-right">
+                            <video id="webcam-live-feed" autoplay muted playsinline></video>
+                        </div>
+
+                        <div class="absolute -top-10 left-0 bg-white text-black text-[10px] font-bold px-3 py-1.5 rounded shadow-lg opacity-90 transform translate-y-2 group-hover:translate-y-0 transition-transform">
+                            KAYIT ALANI
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
 
         <!-- VIEW 1: Setup Panel -->
-        <div id="setup-panel" class="w-full max-w-[480px] glass rounded-3xl p-10 shadow-2xl relative overflow-hidden animate-fade-in">
-            <div class="absolute -top-32 -right-32 w-64 h-64 bg-indigo-500/20 rounded-full blur-[80px]"></div>
-            <div class="absolute -bottom-32 -left-32 w-64 h-64 bg-rose-500/20 rounded-full blur-[80px]"></div>
+        <div id="setup-panel" class="w-full max-w-[520px] glass rounded-[32px] p-12 shadow-2xl relative overflow-hidden animate-fade-in border border-white/10">
+            <div class="absolute -top-40 -right-40 w-80 h-80 bg-indigo-600/20 rounded-full blur-[100px]"></div>
+            <div class="absolute -bottom-40 -left-40 w-80 h-80 bg-rose-600/20 rounded-full blur-[100px]"></div>
             
-            <div class="text-center mb-8 relative z-10">
-                <h2 class="text-3xl font-bold text-white mb-2 tracking-tight">Yeni Kayıt</h2>
-                <p class="text-slate-400 text-sm">Ses ve görüntü kaynaklarınızı seçin.</p>
+            <div class="text-center mb-10 relative z-10">
+                <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-white/5 mb-6 border border-white/10 shadow-inner">
+                    <i class="fa-solid fa-sliders text-3xl text-slate-300"></i>
+                </div>
+                <h2 class="text-3xl font-bold text-white mb-2 tracking-tight">Yeni Kayıt Oluştur</h2>
+                <p class="text-slate-400 text-sm">Ses ve görüntü kaynaklarınızı seçerek başlayın.</p>
             </div>
 
-            <div class="space-y-4 relative z-10">
-                <div class="grid grid-cols-2 gap-4">
-                    <label class="cursor-pointer bg-slate-800/40 hover:bg-slate-800/60 border border-white/5 rounded-2xl p-5 flex flex-col items-center justify-center gap-3 transition-all group">
-                        <div class="w-12 h-12 rounded-full bg-slate-700/50 flex items-center justify-center group-hover:bg-indigo-500/20 transition-colors">
-                            <i class="fa-solid fa-microphone text-xl text-slate-400 group-hover:text-indigo-400 transition-colors" id="icon-mic"></i>
+            <div class="space-y-6 relative z-10">
+                <div class="grid grid-cols-2 gap-5">
+                    <!-- Mic Toggle -->
+                    <label class="cursor-pointer bg-slate-800/40 hover:bg-slate-800/70 border border-white/5 hover:border-indigo-500/30 rounded-2xl p-6 flex flex-col items-center justify-center gap-4 transition-all group relative overflow-hidden">
+                        <div class="absolute inset-0 bg-indigo-500/0 group-hover:bg-indigo-500/5 transition-colors duration-300"></div>
+                        <div class="w-14 h-14 rounded-full bg-slate-700/50 flex items-center justify-center group-hover:bg-indigo-500/20 transition-colors duration-300 ring-1 ring-white/5">
+                            <i class="fa-solid fa-microphone text-2xl text-slate-400 group-hover:text-indigo-400 transition-colors duration-300" id="icon-mic"></i>
                         </div>
-                        <div class="text-center">
-                            <span class="text-sm font-medium text-slate-200 block">Mikrofon</span>
-                            <span class="text-[10px] text-slate-500">Sesli Anlatım</span>
+                        <div class="text-center z-10">
+                            <span class="text-base font-semibold text-slate-200 block mb-0.5">Mikrofon</span>
+                            <span class="text-[11px] text-slate-500">Sesli Anlatım</span>
                         </div>
                         <input type="checkbox" id="mic-toggle" class="accent-indigo-500 w-5 h-5 mt-1 border-white/10 bg-slate-900/50">
                     </label>
 
-                    <label class="cursor-pointer bg-slate-800/40 hover:bg-slate-800/60 border border-white/5 rounded-2xl p-5 flex flex-col items-center justify-center gap-3 transition-all group">
-                        <div class="w-12 h-12 rounded-full bg-slate-700/50 flex items-center justify-center group-hover:bg-rose-500/20 transition-colors">
-                            <i class="fa-solid fa-video text-xl text-slate-400 group-hover:text-rose-400 transition-colors" id="icon-cam"></i>
+                    <!-- Webcam Toggle -->
+                    <label class="cursor-pointer bg-slate-800/40 hover:bg-slate-800/70 border border-white/5 hover:border-rose-500/30 rounded-2xl p-6 flex flex-col items-center justify-center gap-4 transition-all group relative overflow-hidden">
+                        <div class="absolute inset-0 bg-rose-500/0 group-hover:bg-rose-500/5 transition-colors duration-300"></div>
+                        <div class="w-14 h-14 rounded-full bg-slate-700/50 flex items-center justify-center group-hover:bg-rose-500/20 transition-colors duration-300 ring-1 ring-white/5">
+                            <i class="fa-solid fa-video text-2xl text-slate-400 group-hover:text-rose-400 transition-colors duration-300" id="icon-cam"></i>
                         </div>
-                        <div class="text-center">
-                            <span class="text-sm font-medium text-slate-200 block">Webcam</span>
-                            <span class="text-[10px] text-slate-500">Görüntülü</span>
+                        <div class="text-center z-10">
+                            <span class="text-base font-semibold text-slate-200 block mb-0.5">Webcam</span>
+                            <span class="text-[11px] text-slate-500">Görüntülü</span>
                         </div>
                         <input type="checkbox" id="cam-toggle" class="accent-rose-500 w-5 h-5 mt-1 border-white/10 bg-slate-900/50">
                     </label>
                 </div>
 
-                <button id="init-btn" class="w-full bg-white text-slate-950 hover:bg-slate-200 font-bold py-4 rounded-xl shadow-xl transform transition-all active:scale-[0.98] mt-4 flex items-center justify-center gap-3 text-base">
-                    <span>Ekranı Seç & Başla</span>
-                    <i class="fa-solid fa-arrow-right text-slate-400"></i>
+                <button id="init-btn" class="w-full bg-white text-slate-950 hover:bg-slate-200 font-bold py-5 rounded-2xl shadow-xl transform transition-all active:scale-[0.99] flex items-center justify-center gap-3 text-base mt-2 group">
+                    <span>Ekranı Seç & İlerle</span>
+                    <i class="fa-solid fa-arrow-right text-slate-400 group-hover:translate-x-1 transition-transform"></i>
                 </button>
             </div>
         </div>
 
         <!-- Recording Status Bar (Floating) -->
-        <div id="recording-status" class="hidden fixed top-8 left-1/2 transform -translate-x-1/2 bg-slate-900/90 backdrop-blur-md border border-white/10 pr-2 pl-6 py-2 rounded-full flex items-center gap-6 shadow-2xl z-[99] transition-all duration-500 ease-in-out hover:scale-105">
+        <div id="recording-status" class="hidden fixed top-8 left-1/2 transform -translate-x-1/2 bg-slate-900/90 backdrop-blur-md border border-white/10 pr-2 pl-6 py-2.5 rounded-full flex items-center gap-6 shadow-2xl z-[99] transition-all duration-500 ease-in-out hover:scale-105 hover:bg-slate-900">
             <div class="flex items-center gap-3">
                 <div class="relative flex h-3 w-3">
                   <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" id="rec-dot-anim"></span>
                   <span class="relative inline-flex rounded-full h-3 w-3 bg-red-500" id="rec-dot"></span>
                 </div>
-                <span class="font-mono text-xl w-20 tracking-wider font-bold" id="timer">00:00</span>
+                <span class="font-mono text-xl w-20 tracking-wider font-bold text-white" id="timer">00:00</span>
             </div>
             <div class="h-6 w-px bg-white/10"></div>
             <div class="flex gap-2">
-                <button id="pause-btn" class="w-9 h-9 rounded-full bg-white/5 hover:bg-white/10 text-yellow-500 flex items-center justify-center transition-colors border border-white/5 tooltip-trigger" title="Duraklat (F9)">
-                    <i class="fa-solid fa-pause text-xs"></i>
+                <button id="pause-btn" class="w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 text-yellow-500 flex items-center justify-center transition-colors border border-white/5 tooltip-trigger active:scale-95" title="Duraklat (F9)">
+                    <i class="fa-solid fa-pause text-sm"></i>
                 </button>
-                <button id="stop-btn-top" class="w-9 h-9 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center shadow-lg transition-colors tooltip-trigger" title="Bitir (F10)">
-                    <i class="fa-solid fa-stop text-xs"></i>
+                <button id="stop-btn-top" class="w-10 h-10 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center shadow-lg transition-colors tooltip-trigger active:scale-95" title="Bitir (F10)">
+                    <i class="fa-solid fa-stop text-sm"></i>
                 </button>
-                <button id="hide-ui-btn" class="w-9 h-9 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-400 flex items-center justify-center transition-colors border border-white/5 ml-2 tooltip-trigger" title="Gizle">
+                <button id="hide-ui-btn" class="w-10 h-10 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-colors border border-white/5 ml-2 tooltip-trigger active:scale-95" title="Gizle">
                     <i class="fa-solid fa-eye-slash text-xs"></i>
                 </button>
             </div>
@@ -327,21 +382,21 @@
                     <div class="w-2 h-2 bg-green-500 rounded-full"></div> Sonuç
                 </div>
             </div>
-            <div class="w-full max-w-5xl glass p-6 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-6">
+            <div class="w-full max-w-5xl glass p-8 rounded-3xl flex flex-col md:flex-row items-center justify-between gap-6 border border-white/5">
                 <div>
-                    <h3 class="text-white font-bold text-lg mb-1">Kayıt Başarılı!</h3>
-                    <p class="text-slate-400 text-sm">Videonuzu istediğiniz formatta indirebilirsiniz.</p>
+                    <h3 class="text-white font-bold text-2xl mb-1">Kayıt Başarılı!</h3>
+                    <p class="text-slate-400 text-sm">Dosyanızı indirmek için bir format seçin.</p>
                 </div>
-                <div class="flex items-center gap-3 w-full md:w-auto">
-                    <button id="download-mp4" class="flex-1 md:flex-none bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all shadow-lg shadow-indigo-500/20">
-                        <i class="fa-brands fa-windows text-indigo-200"></i> MP4 İndir
+                <div class="flex items-center gap-4 w-full md:w-auto">
+                    <button id="download-mp4" class="flex-1 md:flex-none bg-indigo-600 hover:bg-indigo-500 text-white px-8 py-4 rounded-2xl font-bold text-sm flex items-center justify-center gap-3 transition-all shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/40 hover:-translate-y-1">
+                        <i class="fa-brands fa-windows text-indigo-200 text-lg"></i> MP4 İndir
                     </button>
-                    <button id="download-webm" class="flex-1 md:flex-none bg-slate-800 hover:bg-slate-700 text-white border border-white/10 px-6 py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all">
-                        <i class="fa-brands fa-chrome text-slate-400"></i> WebM İndir
+                    <button id="download-webm" class="flex-1 md:flex-none bg-slate-800 hover:bg-slate-700 text-white border border-white/10 px-8 py-4 rounded-2xl font-bold text-sm flex items-center justify-center gap-3 transition-all hover:-translate-y-1">
+                        <i class="fa-brands fa-chrome text-slate-400 text-lg"></i> WebM İndir
                     </button>
-                    <div class="w-px h-8 bg-white/10 mx-2 hidden md:block"></div>
-                    <button id="new-record-btn" class="bg-transparent hover:bg-white/5 text-slate-400 hover:text-white px-4 py-3 rounded-xl transition-colors" title="Sil ve Yeni Kayıt">
-                        <i class="fa-solid fa-trash-can text-lg"></i>
+                    <div class="w-px h-10 bg-white/10 mx-2 hidden md:block"></div>
+                    <button id="new-record-btn" class="bg-transparent hover:bg-white/5 text-slate-400 hover:text-white px-5 py-4 rounded-2xl transition-colors" title="Sil ve Yeni Kayıt">
+                        <i class="fa-solid fa-trash-can text-xl"></i>
                     </button>
                 </div>
             </div>
@@ -407,6 +462,9 @@
             camPosBtns: document.querySelectorAll('.cam-pos-btn'),
             camShapeBtn: document.getElementById('cam-shape-btn'),
             
+            webcamPreviewLayer: document.getElementById('webcam-preview-layer'),
+            webcamLiveFeed: document.getElementById('webcam-live-feed'),
+            
             recDot: document.getElementById('rec-dot'),
             recDotAnim: document.getElementById('rec-dot-anim')
         };
@@ -434,10 +492,10 @@
 
         // --- UI Interactions ---
         els.micToggle.addEventListener('change', (e) => {
-            els.iconMic.className = e.target.checked ? "fa-solid fa-microphone text-xl text-indigo-400 transition-colors" : "fa-solid fa-microphone text-xl text-slate-400 transition-colors";
+            els.iconMic.className = e.target.checked ? "fa-solid fa-microphone text-2xl text-indigo-400 transition-colors" : "fa-solid fa-microphone text-2xl text-slate-400 transition-colors";
         });
         els.camToggle.addEventListener('change', (e) => {
-            els.iconCam.className = e.target.checked ? "fa-solid fa-video text-xl text-rose-400 transition-colors" : "fa-solid fa-video text-xl text-slate-400 transition-colors";
+            els.iconCam.className = e.target.checked ? "fa-solid fa-video text-2xl text-rose-400 transition-colors" : "fa-solid fa-video text-2xl text-slate-400 transition-colors";
         });
 
         // Mode Switching
@@ -457,7 +515,9 @@
                     const vidW = els.cropSourceVideo.videoWidth;
                     const vidH = els.cropSourceVideo.videoHeight;
                     cropState = { sx: 0, sy: 0, sw: vidW, sh: vidH };
-                    els.cropSizeInfo.innerText = `${vidW}x${vidH}`;
+                    // If fullscreen, ensure cam preview is managed differently? 
+                    // For simplicity, cam preview only visible in crop mode or logic needs robust fullscreen overlay.
+                    // Let's assume user uses Crop Mode to setup cam easily.
                 }
             });
         });
@@ -467,7 +527,13 @@
             btn.addEventListener('click', () => {
                 els.camPosBtns.forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
-                camPosition = btn.dataset.pos;
+                
+                // Remove old pos classes
+                els.webcamPreviewLayer.classList.remove('cam-pos-top-left', 'cam-pos-top-right', 'cam-pos-bottom-left', 'cam-pos-bottom-right');
+                // Add new
+                const pos = btn.dataset.pos;
+                els.webcamPreviewLayer.classList.add(`cam-pos-${pos}`);
+                camPosition = pos;
             });
         });
 
@@ -475,9 +541,13 @@
             if (camShape === 'circle') {
                 camShape = 'square';
                 els.camShapeBtn.innerHTML = '<i class="fa-solid fa-square"></i>';
+                els.webcamPreviewLayer.classList.remove('rounded-full');
+                els.webcamPreviewLayer.classList.add('rounded-2xl');
             } else {
                 camShape = 'circle';
                 els.camShapeBtn.innerHTML = '<i class="fa-solid fa-circle"></i>';
+                els.webcamPreviewLayer.classList.remove('rounded-2xl');
+                els.webcamPreviewLayer.classList.add('rounded-full');
             }
         });
 
@@ -511,6 +581,12 @@
                 if (useCam && streams.user && streams.user.getVideoTracks().length > 0) {
                     els.camControls.classList.remove('hidden');
                     els.camControls.classList.add('flex');
+                    
+                    // Activate Webcam Preview
+                    els.webcamPreviewLayer.classList.remove('hidden');
+                    els.webcamLiveFeed.srcObject = streams.user;
+                } else {
+                    els.webcamPreviewLayer.classList.add('hidden');
                 }
 
                 els.setupPanel.classList.add('hidden');
@@ -557,6 +633,7 @@
                 const contW = els.cropSourceVideo.offsetWidth;
                 const scale = contW / vidW;
                 
+                // Default Crop Box Size (50%)
                 const boxW = contW * 0.5;
                 const boxH = (vidH * scale) * 0.5;
                 
@@ -565,8 +642,10 @@
                 els.cropBox.style.left = `${(contW - boxW)/2}px`;
                 els.cropBox.style.top = `${((vidH * scale) - boxH)/2}px`;
                 
+                // Start with custom mode to show cam easily
+                document.querySelector('[data-mode="custom"]').click();
+                
                 cropState = { sx: 0, sy: 0, sw: vidW, sh: vidH };
-                els.cropSizeInfo.innerText = `${vidW}x${vidH}`;
             };
         }
 
@@ -627,12 +706,10 @@
             cropState.sy = els.cropBox.offsetTop * scale;
             cropState.sw = els.cropBox.offsetWidth * scale;
             cropState.sh = els.cropBox.offsetHeight * scale;
-            els.cropSizeInfo.innerText = `${Math.round(cropState.sw)}x${Math.round(cropState.sh)}`;
         }
 
         // --- STEP 2: Start Recording ---
         els.startRecordingBtn.onclick = () => {
-            // Check if already recording to act as toggle
             if (isRecording) {
                 stopRecording();
                 return;
@@ -658,19 +735,20 @@
             els.statusBadge.className = "text-[10px] uppercase tracking-wider px-2 py-1 rounded border border-red-500 text-red-400 font-bold animate-pulse bg-red-900/20";
             
             els.recordingStatus.classList.remove('hidden');
-            els.recordingStatus.classList.remove('ui-hidden'); // Ensure visible
+            els.recordingStatus.classList.remove('ui-hidden'); 
             
             // Toggle Main Button State
             const btnText = els.startRecordingBtn.querySelector('.btn-text');
             if(btnText) btnText.innerText = "KAYDI DURDUR";
             els.startRecordingBtn.dataset.recording = "true";
             els.startRecordingBtn.classList.replace('bg-red-600', 'bg-slate-700');
-            els.startRecordingBtn.onclick = stopRecording; // Override click
+            els.startRecordingBtn.onclick = stopRecording; 
 
             // Visual Guide Mode
             if (isCropMode) {
                 els.cropBox.classList.add('recording-mode');
                 document.querySelectorAll('.resize-handle').forEach(h => h.classList.add('hidden'));
+                els.webcamPreviewLayer.classList.add('hidden'); // Hide actual preview, will be drawn on canvas
             } else {
                 els.cropBox.classList.add('hidden');
             }
@@ -688,7 +766,7 @@
 
             // Audio Mixing
             const dest = audioContext ? audioContext.createMediaStreamDestination() : new AudioContext().createMediaStreamDestination();
-            const ac = audioContext || new AudioContext(); // Reuse or new
+            const ac = audioContext || new AudioContext(); 
             
             if(streams.display.getAudioTracks().length) ac.createMediaStreamSource(streams.display).connect(dest);
             
