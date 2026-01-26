@@ -186,7 +186,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            z-index: 40; /* Above crop box content */
+            z-index: 50; /* En üstte olmalı (Crop box 20, Handles 30) */
             pointer-events: none; /* Let clicks pass unless drawing mode */
         }
         #drawing-canvas-layer.active {
@@ -321,7 +321,7 @@
                     <canvas id="drawing-canvas-layer"></canvas>
 
                     <!-- Draggable Crop Box -->
-                    <div id="crop-box" class="absolute" style="top: 0; left: 0; width: 100%; height: 100%;">
+                    <div id="crop-box" class="absolute hidden" style="top: 10%; left: 10%; width: 50%; height: 50%;">
                         <div class="resize-handle handle-nw" data-dir="nw"></div>
                         <div class="resize-handle handle-ne" data-dir="ne"></div>
                         <div class="resize-handle handle-sw" data-dir="sw"></div>
@@ -390,7 +390,7 @@
         </div>
 
         <!-- Recording Status Bar & Drawing Tools -->
-        <div id="recording-status" class="hidden fixed top-8 left-1/2 transform -translate-x-1/2 bg-slate-900/90 backdrop-blur-md border border-white/10 pr-4 pl-6 py-2.5 rounded-full flex items-center gap-6 shadow-2xl z-[99] transition-all duration-500 ease-in-out">
+        <div id="recording-status" class="hidden fixed top-8 left-1/2 transform -translate-x-1/2 bg-slate-900/90 backdrop-blur-md border border-white/10 pr-4 pl-6 py-2.5 rounded-full flex items-center gap-6 shadow-2xl z-[100] transition-all duration-500 ease-in-out">
             <div class="flex items-center gap-3">
                 <div class="relative flex h-3 w-3">
                   <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" id="rec-dot-anim"></span>
@@ -513,8 +513,8 @@
             cropOverlay: document.getElementById('crop-overlay'),
             cropSourceVideo: document.getElementById('crop-source-video'),
             cropBox: document.getElementById('crop-box'),
+            cropSizeInfo: document.getElementById('crop-size-info'),
             cropContainer: document.getElementById('crop-container'),
-            cropLabel: document.getElementById('crop-label'),
             toast: document.getElementById('toast'),
             toastMsg: document.getElementById('toast-msg'),
             
@@ -682,11 +682,16 @@
 
         els.clearDrawBtn.addEventListener('click', () => {
             drawPaths = [];
+            // Clear visible canvas immediately
+            const ctx = els.drawingCanvasLayer.getContext('2d');
+            ctx.clearRect(0, 0, els.drawingCanvasLayer.width, els.drawingCanvasLayer.height);
         });
 
         // Canvas Interaction for Drawing
         function setupDrawingCanvas() {
             const canvas = els.drawingCanvasLayer;
+            const ctx = canvas.getContext('2d');
+            
             // Match size
             canvas.width = els.cropContainer.offsetWidth;
             canvas.height = els.cropContainer.offsetHeight;
@@ -699,6 +704,12 @@
                     x: e.clientX - rect.left,
                     y: e.clientY - rect.top
                 }];
+                // Start a fresh path on the visual canvas immediately
+                ctx.beginPath();
+                ctx.strokeStyle = drawColor;
+                ctx.lineWidth = 5;
+                ctx.lineCap = 'round';
+                ctx.moveTo(currentPath[0].x, currentPath[0].y);
             });
 
             canvas.addEventListener('mousemove', (e) => {
@@ -711,6 +722,10 @@
 
                 if(isDrawing && isDrawingMode) {
                     currentPath.push({ x, y });
+                    
+                    // Draw on visual canvas immediately for feedback
+                    ctx.lineTo(x, y);
+                    ctx.stroke();
                 }
             });
 
@@ -727,6 +742,61 @@
                     currentPath = [];
                 }
             });
+        }
+        
+        // Loop to render Visual Feedback on the Screen (Not just recording)
+        function renderVisualFeedback() {
+            if (!isRecording && !isDrawingMode && !isMouseHighlight) return;
+            
+            const canvas = els.drawingCanvasLayer;
+            const ctx = canvas.getContext('2d');
+            
+            // Clear needed for mouse highlight animation or if we redraw paths
+            // Note: If we clear, we must redraw all paths. 
+            // Simple approach: Clear everything and redraw persistent paths + mouse highlight.
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // 1. Draw Saved Paths
+            // We need to map relative paths back to current canvas size
+            drawPaths.forEach(path => {
+                ctx.beginPath();
+                ctx.strokeStyle = path.color;
+                ctx.lineWidth = 5;
+                ctx.lineCap = 'round';
+                path.points.forEach((p, i) => {
+                    if (i === 0) ctx.moveTo(p.x * canvas.width, p.y * canvas.height);
+                    else ctx.lineTo(p.x * canvas.width, p.y * canvas.height);
+                });
+                ctx.stroke();
+            });
+            
+            // 2. Draw Current Stroke (already handled by mousemove, but if we clear, we must redraw it)
+            if (isDrawing && currentPath.length > 0) {
+                ctx.beginPath();
+                ctx.strokeStyle = drawColor;
+                ctx.lineWidth = 5;
+                ctx.lineCap = 'round';
+                currentPath.forEach((p, i) => {
+                    if (i === 0) ctx.moveTo(p.x, p.y);
+                    else ctx.lineTo(p.x, p.y);
+                });
+                ctx.stroke();
+            }
+            
+            // 3. Mouse Highlight
+            if (isMouseHighlight) {
+                // Ensure mouse is within bounds
+                if (mousePos.x >= 0 && mousePos.x <= canvas.width && mousePos.y >= 0 && mousePos.y <= canvas.height) {
+                    ctx.save();
+                    ctx.fillStyle = "rgba(250, 204, 21, 0.4)"; // Yellow transparent
+                    ctx.beginPath();
+                    ctx.arc(mousePos.x, mousePos.y, 20, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.restore();
+                }
+            }
+            
+            requestAnimationFrame(renderVisualFeedback);
         }
 
         // --- STEP 1: Init Stream ---
@@ -809,6 +879,9 @@
                 
                 // Initialize Drawing Layer
                 setupDrawingCanvas();
+                
+                // Start Visual Feedback Loop
+                renderVisualFeedback();
                 
                 // FORCE DEFAULT FULL SCREEN MODE
                 isCropMode = false;
@@ -919,20 +992,11 @@
             document.querySelectorAll('.resize-handle').forEach(h => h.classList.add('hidden'));
             
             // WEBCAM HIDE/SHOW LOGIC FOR RECORDING:
-            // Since we draw webcam on canvas, we hide the HTML preview element during recording to avoid double vision if recording full screen?
-            // Actually, we keep it visible as a guide for the user, but we make sure the recorder records the CANVAS where we manually draw everything.
-            // But wait, if we record screen via displayMedia, we capture this HTML element too if it's on screen!
-            // Correct approach: We use Canvas to compose. So we capture the video streams in JS and draw to canvas.
-            // The HTML elements are just for user preview.
-            // We should hide the Webcam Preview Layer during recording IF it obstructs the view?
-            // NO, the user needs to see themselves.
-            // BUT, if we record the screen (DisplayMedia), the user will see the webcam preview on their screen.
-            // AND we draw it on canvas.
-            // This results in double webcam if we record the area where the preview is.
-            // However, we are using a Compositor Canvas.
-            // We record the CANVAS stream, not the screen stream directly.
-            // So what shows on screen doesn't matter for the recording content, only for user feedback.
-            // We will keep the preview visible for the user.
+            if (isCropMode) {
+                els.webcamPreviewLayer.classList.add('hidden'); // Hide actual preview, will be drawn on canvas
+            } else {
+                els.cropBox.classList.add('hidden');
+            }
 
             const canvas = document.getElementById('compositor-canvas');
             const ctx = canvas.getContext('2d');
