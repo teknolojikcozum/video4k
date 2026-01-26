@@ -34,11 +34,35 @@
         #crop-container {
             user-select: none;
             touch-action: none;
+            overflow: hidden; /* Taşmayı önle */
         }
+        /* Düzenleme Modundaki Kutu */
         #crop-box {
-            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.7);
+            /* İçeriği görebilmek için border yerine outline kullanıyoruz ki boyut hesaplaması şaşmasın */
+            /* boxShadow ile karartma efekti veriyoruz */
+            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.7); 
             cursor: move;
+            z-index: 20;
+            outline: 2px dashed #ffffff; /* Kesim hattı */
         }
+        /* Kayıt Sırasındaki Kılavuz (Recording Guide) */
+        #crop-box.recording-mode {
+            box-shadow: none; /* Karartmayı kaldır */
+            cursor: default;
+            pointer-events: none; /* Tıklamaları arkaya geçir */
+            background: transparent;
+            /* Kılavuz çizgisini DIŞARI atıyoruz ki videoya girmesin */
+            outline: 4px solid rgba(239, 68, 68, 0.8); 
+            outline-offset: 1px; /* Videodan 1px uzaklaştır */
+            animation: guide-pulse 2s infinite;
+        }
+        
+        @keyframes guide-pulse {
+            0% { outline-color: rgba(239, 68, 68, 0.8); }
+            50% { outline-color: rgba(239, 68, 68, 0.2); }
+            100% { outline-color: rgba(239, 68, 68, 0.8); }
+        }
+
         .resize-handle {
             width: 12px;
             height: 12px;
@@ -46,13 +70,35 @@
             border: 2px solid #ef4444;
             position: absolute;
             border-radius: 50%;
-            z-index: 20;
+            z-index: 30;
         }
         /* Corners */
         .handle-nw { top: -6px; left: -6px; cursor: nw-resize; }
         .handle-ne { top: -6px; right: -6px; cursor: ne-resize; }
         .handle-sw { bottom: -6px; left: -6px; cursor: sw-resize; }
         .handle-se { bottom: -6px; right: -6px; cursor: se-resize; }
+
+        .format-btn {
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            transition: all 0.2s;
+            border: 1px solid #334155;
+            background-color: #0f172a;
+            color: #94a3b8;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+        }
+        .format-btn:hover { background-color: #1e293b; color: white; }
+        .format-btn.active {
+            background-color: #dc2626;
+            color: white;
+            border-color: #ef4444;
+        }
     </style>
 </head>
 <body class="bg-slate-950 text-slate-200 font-sans h-screen flex flex-col overflow-hidden select-none">
@@ -74,40 +120,61 @@
     <main class="flex-1 flex overflow-hidden relative items-center justify-center p-4">
         
         <!-- Toast Notification -->
-        <div id="toast" class="hidden absolute top-4 right-4 bg-blue-600 text-white px-4 py-3 rounded shadow-lg z-[80] flex items-center animate-fade-in text-sm font-medium">
+        <div id="toast" class="hidden absolute top-4 right-4 bg-blue-600 text-white px-4 py-3 rounded shadow-lg z-[90] flex items-center animate-fade-in text-sm font-medium">
             <i class="fa-solid fa-circle-info mr-2"></i> <span id="toast-msg">Mesaj</span>
         </div>
         
         <!-- Countdown Overlay -->
-        <div id="countdown-overlay" class="hidden absolute inset-0 bg-slate-950/95 z-[70] flex items-center justify-center">
+        <div id="countdown-overlay" class="hidden absolute inset-0 bg-slate-950/95 z-[80] flex items-center justify-center">
             <div class="text-9xl font-bold text-white animate-ping" id="countdown-text">3</div>
         </div>
 
-        <!-- Crop/Area Selection Overlay (New) -->
+        <!-- Crop/Area Selection Overlay (Geliştirilmiş Önizleme Modu) -->
         <div id="crop-overlay" class="hidden absolute inset-0 bg-slate-950 z-[60] flex flex-col">
-            <div class="h-12 bg-slate-900 border-b border-slate-800 flex items-center justify-between px-6 shrink-0">
-                <h3 class="font-bold text-white"><i class="fa-solid fa-crop mr-2 text-red-500"></i> Alanı Seçin</h3>
-                <div class="text-xs text-slate-400">Beyaz kutuyu sürükleyerek kayıt alanını belirleyin.</div>
-                <button id="confirm-crop-btn" class="bg-red-600 hover:bg-red-500 text-white px-4 py-1.5 rounded text-sm font-medium">
-                    Kaydı Başlat <i class="fa-solid fa-arrow-right ml-1"></i>
-                </button>
+            <!-- Toolbar -->
+            <div class="h-auto py-3 bg-slate-900 border-b border-slate-800 flex flex-col md:flex-row items-center justify-between px-6 shrink-0 gap-4">
+                <div class="flex items-center gap-4 overflow-x-auto w-full md:w-auto pb-2 md:pb-0">
+                    <button type="button" class="format-btn active shrink-0" data-format="fullscreen">
+                        <i class="fa-solid fa-expand text-lg"></i> Tam Ekran
+                    </button>
+                    <button type="button" class="format-btn shrink-0" data-format="shorts">
+                        <i class="fa-solid fa-mobile-screen text-lg"></i> Shorts (9:16)
+                    </button>
+                    <button type="button" class="format-btn shrink-0" data-format="square">
+                        <i class="fa-regular fa-square text-lg"></i> Kare (1:1)
+                    </button>
+                    <button type="button" class="format-btn shrink-0" data-format="custom">
+                        <i class="fa-solid fa-crop-simple text-lg"></i> Serbest
+                    </button>
+                </div>
+
+                <div class="flex items-center gap-4">
+                     <div class="text-xs text-slate-400 hidden md:block text-right">
+                        <div class="font-bold text-white">Önizleme Modu</div>
+                        <span id="crop-size-info">1920x1080</span>
+                    </div>
+                    <button id="start-recording-btn" class="bg-red-600 hover:bg-red-500 text-white px-6 py-2 rounded-lg text-sm font-bold shadow-lg shadow-red-900/30 flex items-center gap-2 transition-transform hover:scale-105">
+                        <div class="w-2 h-2 bg-white rounded-full animate-pulse"></div> KAYDI BAŞLAT
+                    </button>
+                </div>
             </div>
+
+            <!-- Canvas Container -->
             <div class="flex-1 relative bg-black overflow-hidden flex items-center justify-center p-4">
                 <div id="crop-container" class="relative shadow-2xl border border-slate-800">
                     <!-- Source Video Preview (Under crop box) -->
-                    <video id="crop-source-video" autoplay muted class="block max-w-full max-h-[80vh]"></video>
+                    <video id="crop-source-video" autoplay muted class="block max-w-full max-h-[75vh]"></video>
                     
                     <!-- Draggable Crop Box -->
-                    <div id="crop-box" class="absolute border-2 border-red-500 z-10" style="top: 10%; left: 10%; width: 200px; height: 200px;">
+                    <div id="crop-box" class="absolute hidden" style="top: 0; left: 0; width: 100%; height: 100%;">
+                        <!-- Handles are only visible in editing mode -->
                         <div class="resize-handle handle-nw" data-dir="nw"></div>
                         <div class="resize-handle handle-ne" data-dir="ne"></div>
                         <div class="resize-handle handle-sw" data-dir="sw"></div>
                         <div class="resize-handle handle-se" data-dir="se"></div>
                         
-                        <!-- Size Label -->
-                        <div class="absolute -top-7 left-0 bg-red-600 text-white text-[10px] px-2 py-0.5 rounded font-mono">
-                            <span id="crop-size-label">0x0</span>
-                        </div>
+                        <!-- Center Crosshair (Visual Aid) -->
+                        <div class="absolute top-1/2 left-1/2 w-4 h-4 -mt-2 -ml-2 border-t border-l border-white/50 opacity-50 pointer-events-none"></div>
                     </div>
                 </div>
             </div>
@@ -118,8 +185,8 @@
             <div class="absolute -top-24 -right-24 w-48 h-48 bg-red-500/10 rounded-full blur-3xl"></div>
             <div class="absolute -bottom-24 -left-24 w-48 h-48 bg-orange-500/10 rounded-full blur-3xl"></div>
             
-            <h2 class="text-2xl font-bold text-white mb-2 relative z-10 text-center">Kayıt Ayarları</h2>
-            <p class="text-slate-400 text-sm mb-6 relative z-10 text-center">Kayda başlamadan önce tercihlerinizi belirleyin.</p>
+            <h2 class="text-2xl font-bold text-white mb-2 relative z-10 text-center">RecMaster Lite</h2>
+            <p class="text-slate-400 text-sm mb-6 relative z-10 text-center">Ekranınızı seçin, formatı ayarlayın ve kaydedin.</p>
 
             <div class="space-y-4 relative z-10">
                 <!-- Toggle Group -->
@@ -137,29 +204,14 @@
                     </label>
                 </div>
 
-                <!-- Format Select -->
-                <div class="bg-slate-800 border border-slate-700 rounded-xl p-4">
-                    <label class="block text-xs text-slate-400 uppercase font-bold mb-2">Kayıt Alanı & Format</label>
-                    <div class="grid grid-cols-2 gap-2 mb-2">
-                        <button type="button" class="format-btn active bg-red-600 text-white border-red-500" data-format="fullscreen">
-                            <i class="fa-solid fa-expand mb-1 block text-lg"></i> Tam Ekran
-                        </button>
-                        <button type="button" class="format-btn bg-slate-950 border-slate-700 text-slate-400 hover:text-white" data-format="shorts">
-                            <i class="fa-solid fa-mobile-screen mb-1 block text-lg"></i> Shorts/Reels (9:16)
-                        </button>
-                        <button type="button" class="format-btn bg-slate-950 border-slate-700 text-slate-400 hover:text-white" data-format="square">
-                            <i class="fa-regular fa-square mb-1 block text-lg"></i> Kare (1:1)
-                        </button>
-                        <button type="button" class="format-btn bg-slate-950 border-slate-700 text-slate-400 hover:text-white" data-format="custom">
-                            <i class="fa-solid fa-crop-simple mb-1 block text-lg"></i> Serbest Seçim
-                        </button>
-                    </div>
-                    <p class="text-[10px] text-slate-500 mt-2 italic">* 'Tam Ekran' haricindeki seçeneklerde kayıt öncesi alan seçimi yapacaksınız.</p>
+                <div class="bg-slate-800/50 p-3 rounded-lg border border-slate-700/50 text-xs text-slate-400 flex items-start gap-2">
+                    <i class="fa-solid fa-circle-info mt-0.5 text-blue-400"></i>
+                    <span>Sonraki adımda kayıt alanını (Shorts, Tam Ekran vb.) canlı önizleme üzerinde ayarlayabileceksiniz.</span>
                 </div>
 
                 <button id="init-btn" class="w-full bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-500 hover:to-orange-500 text-white font-bold py-4 rounded-xl shadow-lg shadow-red-900/20 transform transition-all active:scale-[0.98] mt-2 flex items-center justify-center gap-2">
-                    <div class="w-3 h-3 bg-white rounded-full animate-pulse"></div>
-                    Kaydı Başlat
+                    <i class="fa-solid fa-desktop"></i>
+                    Ekranı Seç ve Ayarla
                 </button>
             </div>
         </div>
@@ -188,7 +240,7 @@
             <div class="w-full max-w-4xl bg-black rounded-xl overflow-hidden shadow-2xl border border-slate-800 relative group" style="max-height: 70vh;">
                 <video id="preview-video" class="w-full h-full object-contain" controls></video>
                 <div class="absolute top-4 left-4 bg-black/60 px-3 py-1 rounded text-xs backdrop-blur-sm text-white border border-white/10 pointer-events-none">
-                    Önizleme
+                    Sonuç Önizleme
                 </div>
             </div>
 
@@ -256,11 +308,11 @@
             cropOverlay: document.getElementById('crop-overlay'),
             cropSourceVideo: document.getElementById('crop-source-video'),
             cropBox: document.getElementById('crop-box'),
-            cropSizeLabel: document.getElementById('crop-size-label'),
+            cropSizeInfo: document.getElementById('crop-size-info'),
             cropContainer: document.getElementById('crop-container'),
             
             initBtn: document.getElementById('init-btn'),
-            confirmCropBtn: document.getElementById('confirm-crop-btn'),
+            startRecordingBtn: document.getElementById('start-recording-btn'),
             stopBtn: document.getElementById('stop-btn-top'),
             pauseBtn: document.getElementById('pause-btn'),
             timer: document.getElementById('timer'),
@@ -280,44 +332,24 @@
             els.iconCam.className = e.target.checked ? "fa-solid fa-camera text-2xl text-white mb-1" : "fa-solid fa-camera text-2xl text-slate-400 mb-1";
         });
 
-        // Format Selection Buttons
+        // Format Selection Logic
         document.querySelectorAll('.format-btn').forEach(btn => {
             btn.addEventListener('click', () => {
-                document.querySelectorAll('.format-btn').forEach(b => {
-                    b.classList.remove('active', 'bg-red-600', 'text-white', 'border-red-500');
-                    b.classList.add('bg-slate-950', 'text-slate-400', 'border-slate-700');
-                });
-                btn.classList.remove('bg-slate-950', 'text-slate-400', 'border-slate-700');
-                btn.classList.add('active', 'bg-red-600', 'text-white', 'border-red-500');
-                // Button styling class needs 'border'
-                btn.classList.add('border');
+                document.querySelectorAll('.format-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
                 
                 selectedFormat = btn.dataset.format;
+                updateCropBoxFromFormat(); // Format değişince kutuyu güncelle
             });
         });
 
-        // Add base styles for format buttons
-        const style = document.createElement('style');
-        style.innerHTML = `
-            .format-btn {
-                padding: 10px;
-                border-radius: 8px;
-                font-size: 0.75rem;
-                font-weight: 600;
-                transition: all 0.2s;
-                border-width: 1px;
-            }
-        `;
-        document.head.appendChild(style);
-
-
-        // --- STEP 1: Initialize Stream ---
+        // --- STEP 1: Initialize Stream & Open Preview ---
         els.initBtn.onclick = async () => {
             const useMic = els.micToggle.checked;
             const useCam = els.camToggle.checked;
 
             try {
-                // 1. Get Screen Stream (Always get full quality first)
+                // 1. Get Screen Stream
                 streams.display = await navigator.mediaDevices.getDisplayMedia({ 
                     video: { frameRate: 60, width: { ideal: 1920 }, height: { ideal: 1080 } }, 
                     audio: true 
@@ -336,15 +368,7 @@
                 }
 
                 els.setupPanel.classList.add('hidden');
-
-                // 3. Check Format
-                if (selectedFormat === 'fullscreen') {
-                    // Direct Start
-                    startCountdown();
-                } else {
-                    // Open Crop UI
-                    setupCropUI();
-                }
+                setupCropUI(); // Direkt Önizlemeyi Aç
 
             } catch (err) {
                 console.warn("Cancelled:", err);
@@ -357,46 +381,63 @@
             els.cropOverlay.classList.remove('hidden');
             els.cropSourceVideo.srcObject = streams.display;
             
-            // Wait for video to load metadata to size everything
             els.cropSourceVideo.onloadedmetadata = () => {
-                // Determine layout
-                const vidW = els.cropSourceVideo.videoWidth;
-                const vidH = els.cropSourceVideo.videoHeight;
-                
-                // Set initial crop box size based on format
-                let boxW = 300;
-                let boxH = 300;
-                
-                if (selectedFormat === 'shorts') {
-                    // 9:16
-                    boxH = vidH * 0.8; // 80% of screen height
-                    boxW = boxH * (9/16);
-                } else if (selectedFormat === 'square') {
-                    boxH = vidH * 0.6;
-                    boxW = boxH;
-                } else {
-                    // Custom
-                    boxW = vidW * 0.5;
-                    boxH = vidH * 0.5;
-                }
-                
-                // Position center
-                // Note: The displayed video size might differ from intrinsic size.
-                // We need to calculate scale factor.
-                // However, accessing offsetWidth immediately might be racey.
-                // Let's setup update loop or basic positioning.
-                
-                // Reset box style
-                els.cropBox.style.width = `${boxW}px`; // This assumes 1:1 scale for now, will fix in logic
-                els.cropBox.style.height = `${boxH}px`;
-                els.cropBox.style.left = `50px`;
-                els.cropBox.style.top = `50px`;
-                
-                updateCropLabels();
+                updateCropBoxFromFormat();
             };
         }
 
-        // Draggable Crop Box Logic
+        // Apply Format Dimensions to Crop Box
+        function updateCropBoxFromFormat() {
+            if (!els.cropSourceVideo.videoWidth) return;
+
+            const vidW = els.cropSourceVideo.videoWidth;
+            const vidH = els.cropSourceVideo.videoHeight;
+            
+            // Container visual dimensions
+            const containerW = els.cropSourceVideo.offsetWidth;
+            const containerH = els.cropSourceVideo.offsetHeight;
+            const scale = containerW / vidW; // Scale ratio for visual elements
+            
+            // Eğer tam ekransa kutuyu gizle
+            if (selectedFormat === 'fullscreen') {
+                els.cropBox.classList.add('hidden');
+                updateCropLabels(); // Full size güncelle
+                return;
+            } else {
+                els.cropBox.classList.remove('hidden');
+            }
+
+            // Calculate Target Size (in video pixels)
+            let boxW, boxH;
+
+            if (selectedFormat === 'shorts') { // 9:16
+                boxH = vidH * 0.9;
+                boxW = boxH * (9/16);
+            } else if (selectedFormat === 'square') { // 1:1
+                boxH = vidH * 0.8;
+                boxW = boxH;
+            } else { // Custom (Default to 50%)
+                boxW = vidW * 0.5;
+                boxH = vidH * 0.5;
+            }
+
+            // Convert to Display Pixels
+            const dispW = boxW * scale;
+            const dispH = boxH * scale;
+
+            // Center it
+            const left = (containerW - dispW) / 2;
+            const top = (containerH - dispH) / 2;
+
+            els.cropBox.style.width = `${dispW}px`;
+            els.cropBox.style.height = `${dispH}px`;
+            els.cropBox.style.left = `${left}px`;
+            els.cropBox.style.top = `${top}px`;
+
+            updateCropLabels();
+        }
+
+        // Draggable Logic
         let isDraggingBox = false;
         let isResizing = false;
         let resizeDir = '';
@@ -404,121 +445,100 @@
 
         els.cropContainer.addEventListener('mousedown', (e) => {
             if (e.target.classList.contains('resize-handle')) {
-                // Resize
-                if (selectedFormat !== 'custom') return; // Only custom allows resize for simplicity, or we can allow scaling
-                
+                if (selectedFormat !== 'custom') return;
                 isResizing = true;
                 resizeDir = e.target.dataset.dir;
-                startX = e.clientX;
-                startY = e.clientY;
-                startW = els.cropBox.offsetWidth;
-                startH = els.cropBox.offsetHeight;
-                startLeft = els.cropBox.offsetLeft;
-                startTop = els.cropBox.offsetTop;
+                startX = e.clientX; startY = e.clientY;
+                startW = els.cropBox.offsetWidth; startH = els.cropBox.offsetHeight;
+                startLeft = els.cropBox.offsetLeft; startTop = els.cropBox.offsetTop;
                 e.preventDefault();
             } else if (e.target.id === 'crop-box' || els.cropBox.contains(e.target)) {
-                // Drag
+                // Recording mode check: Don't drag if recording!
+                if(mediaRecorder && mediaRecorder.state === 'recording') return;
+                
                 isDraggingBox = true;
-                startX = e.clientX;
-                startY = e.clientY;
-                startLeft = els.cropBox.offsetLeft;
-                startTop = els.cropBox.offsetTop;
+                startX = e.clientX; startY = e.clientY;
+                startLeft = els.cropBox.offsetLeft; startTop = els.cropBox.offsetTop;
                 e.preventDefault();
             }
         });
 
         window.addEventListener('mousemove', (e) => {
-            // Get boundaries of container
             const containerRect = els.cropContainer.getBoundingClientRect();
             
             if (isDraggingBox) {
                 let dx = e.clientX - startX;
                 let dy = e.clientY - startY;
-                
-                let newLeft = startLeft + dx;
-                let newTop = startTop + dy;
-                
-                // Constrain
-                const maxLeft = containerRect.width - els.cropBox.offsetWidth;
-                const maxTop = containerRect.height - els.cropBox.offsetHeight;
-                
-                newLeft = Math.max(0, Math.min(newLeft, maxLeft));
-                newTop = Math.max(0, Math.min(newTop, maxTop));
+                let newLeft = Math.max(0, Math.min(startLeft + dx, containerRect.width - els.cropBox.offsetWidth));
+                let newTop = Math.max(0, Math.min(startTop + dy, containerRect.height - els.cropBox.offsetHeight));
                 
                 els.cropBox.style.left = `${newLeft}px`;
                 els.cropBox.style.top = `${newTop}px`;
-                
                 updateCropLabels();
             } else if (isResizing) {
                 let dx = e.clientX - startX;
                 let dy = e.clientY - startY;
                 
-                // Simplified resize logic
                 if (resizeDir.includes('e')) els.cropBox.style.width = `${startW + dx}px`;
                 if (resizeDir.includes('s')) els.cropBox.style.height = `${startH + dy}px`;
-                
-                // Basic Aspect Ratio Lock for Shorts/Square could go here
-                // For now, custom lets you go wild. 
-                // For Presets, we disable resize handles via CSS pointer-events maybe?
-                
                 updateCropLabels();
             }
         });
 
-        window.addEventListener('mouseup', () => {
-            isDraggingBox = false;
-            isResizing = false;
-        });
+        window.addEventListener('mouseup', () => { isDraggingBox = false; isResizing = false; });
 
         function updateCropLabels() {
-            // Displayed size vs Intrinsic size
-            const vidDispW = els.cropSourceVideo.offsetWidth;
-            const vidIntW = els.cropSourceVideo.videoWidth;
-            const scale = vidIntW / vidDispW;
-            
-            // Save for recording
-            cropState.scaleFactor = scale;
-            cropState.sx = els.cropBox.offsetLeft * scale;
-            cropState.sy = els.cropBox.offsetTop * scale;
-            cropState.sw = els.cropBox.offsetWidth * scale;
-            cropState.sh = els.cropBox.offsetHeight * scale;
-            
-            els.cropSizeLabel.innerText = `${Math.round(cropState.sw)}x${Math.round(cropState.sh)}`;
+            // Real video dims
+            const vidW = els.cropSourceVideo.videoWidth;
+            const containerW = els.cropSourceVideo.offsetWidth;
+            const scale = vidW / containerW;
+
+            if (selectedFormat === 'fullscreen') {
+                cropState = { sx: 0, sy: 0, sw: vidW, sh: els.cropSourceVideo.videoHeight };
+                els.cropSizeInfo.innerText = `${vidW}x${els.cropSourceVideo.videoHeight}`;
+            } else {
+                cropState.sx = els.cropBox.offsetLeft * scale;
+                cropState.sy = els.cropBox.offsetTop * scale;
+                cropState.sw = els.cropBox.offsetWidth * scale;
+                cropState.sh = els.cropBox.offsetHeight * scale;
+                els.cropSizeInfo.innerText = `${Math.round(cropState.sw)}x${Math.round(cropState.sh)}`;
+            }
         }
 
-        // --- STEP 2: Confirm Crop & Start ---
-        els.confirmCropBtn.onclick = () => {
-            // Validate crop area
-            if (cropState.sw <= 0 || cropState.sh <= 0) {
-                // Fallback if not updated
-                updateCropLabels();
-            }
-            els.cropOverlay.classList.add('hidden');
-            startCountdown();
-        };
-
-        function startCountdown() {
+        // --- STEP 2: Start Recording ---
+        els.startRecordingBtn.onclick = () => {
+            // Start Countdown
             els.countdownOverlay.classList.remove('hidden');
             let count = 3;
             els.countdownText.innerText = count;
             const cInt = setInterval(() => {
                 count--;
-                if(count>0) els.countdownText.innerText = count;
+                if(count > 0) els.countdownText.innerText = count;
                 else {
                     clearInterval(cInt);
                     els.countdownOverlay.classList.add('hidden');
-                    startRecording();
+                    beginRecording();
                 }
             }, 1000);
-        }
+        };
 
-        // --- STEP 3: Recording Logic ---
-        async function startRecording() {
-            // UI
+        async function beginRecording() {
+            // UI Transition
             els.statusBadge.innerText = "KAYITTA";
             els.statusBadge.className = "text-xs px-3 py-1 rounded-full bg-red-900/50 border border-red-500 text-red-400 font-bold animate-pulse";
             els.recordingStatus.classList.remove('hidden');
+            
+            // Change Crop Box to "Recording Guide" Mode
+            if (selectedFormat !== 'fullscreen') {
+                els.cropBox.classList.add('recording-mode');
+                // Hide handles
+                document.querySelectorAll('.resize-handle').forEach(h => h.classList.add('hidden'));
+            } else {
+                // If fullscreen, ensure box is hidden
+                els.cropBox.classList.add('hidden');
+            }
 
+            // Canvas & Video Setup
             const canvas = document.getElementById('compositor-canvas');
             const ctx = canvas.getContext('2d');
             const vScreen = document.getElementById('src-video-screen');
@@ -527,20 +547,11 @@
             vScreen.srcObject = streams.display;
             await vScreen.play();
 
-            // Set Canvas Size
-            if (selectedFormat === 'fullscreen') {
-                canvas.width = vScreen.videoWidth;
-                canvas.height = vScreen.videoHeight;
-                cropState.sx = 0; cropState.sy = 0;
-                cropState.sw = vScreen.videoWidth;
-                cropState.sh = vScreen.videoHeight;
-            } else {
-                // Use crop dimensions
-                canvas.width = cropState.sw;
-                canvas.height = cropState.sh;
-            }
+            // Set Canvas to Crop Size
+            canvas.width = cropState.sw;
+            canvas.height = cropState.sh;
 
-            // Audio Setup
+            // Audio Mixing
             const ac = new AudioContext();
             const dest = ac.createMediaStreamDestination();
             if(streams.display.getAudioTracks().length) ac.createMediaStreamSource(streams.display).connect(dest);
@@ -552,7 +563,7 @@
 
             // Draw Loop
             const useCam = els.camToggle.checked;
-            if (useCam && streams.user && streams.user.getVideoTracks().length) {
+            if (useCam && streams.user) {
                 vCam.srcObject = streams.user;
                 await vCam.play();
             }
@@ -561,20 +572,18 @@
             function draw() {
                 if(!isDrawing) return;
                 
-                // Draw Cropped Screen Area
-                // drawImage(img, sx, sy, sw, sh, dx, dy, dw, dh)
+                // Draw Crop Area Only
                 ctx.drawImage(vScreen, 
                     cropState.sx, cropState.sy, cropState.sw, cropState.sh, 
                     0, 0, canvas.width, canvas.height
                 );
 
-                // Draw Facecam (If active)
+                // Facecam Logic (Relative to crop)
                 if (useCam && streams.user) {
-                    const size = canvas.height * 0.2; // Smaller relative to crop
+                    const size = canvas.height * 0.2; 
                     const m = 20;
                     const x = canvas.width - size - m;
                     const y = canvas.height - size - m;
-                    
                     ctx.save();
                     ctx.beginPath();
                     ctx.arc(x+size/2, y+size/2, size/2, 0, Math.PI*2);
@@ -583,12 +592,11 @@
                     ctx.strokeStyle = "#fff"; ctx.lineWidth = 3; ctx.stroke();
                     ctx.restore();
                 }
-
                 requestAnimationFrame(draw);
             }
             draw();
 
-            // Stream & Record
+            // Record
             const finalStream = canvas.captureStream(60);
             if(dest.stream.getAudioTracks().length) finalStream.addTrack(dest.stream.getAudioTracks()[0]);
 
@@ -641,6 +649,7 @@
         function finalize() {
             clearInterval(timerInt);
             els.recordingStatus.classList.add('hidden');
+            els.cropOverlay.classList.add('hidden'); // Kılavuz ekranını kapat
             els.resultPanel.classList.remove('hidden');
             els.statusBadge.innerText = "TAMAMLANDI";
             els.statusBadge.className = "text-xs px-3 py-1 rounded-full bg-green-900/50 border border-green-500 text-green-400 font-bold";
