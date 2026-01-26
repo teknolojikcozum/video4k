@@ -179,26 +179,6 @@
             transform: scaleX(-1);
         }
         
-        /* Drawing Canvas (Overlay) */
-        #drawing-canvas-layer {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 50; /* Resize handles (30) üzerinde */
-            pointer-events: none; /* Default: click-through */
-        }
-        #drawing-canvas-layer.active {
-            pointer-events: auto;
-            cursor: crosshair;
-        }
-
-        /* Drawing Tool Button Colors */
-        .color-btn { width: 24px; height: 24px; border-radius: 50%; border: 2px solid transparent; transition: transform 0.1s; }
-        .color-btn:hover { transform: scale(1.1); }
-        .color-btn.active { border-color: white; transform: scale(1.2); box-shadow: 0 0 0 2px rgba(255,255,255,0.2); }
-        
         /* Cam Positions */
         .cam-pos-top-left { top: 20px; left: 20px; }
         .cam-pos-top-right { top: 20px; right: 20px; }
@@ -224,6 +204,9 @@
         </div>
         <div class="flex items-center gap-4">
             <div id="keyboard-hint" class="hidden md:flex gap-2 text-[10px] text-slate-500 font-mono items-center">
+                <div class="flex items-center gap-1 bg-white/5 px-2 py-1 rounded border border-white/5">
+                    <kbd class="font-sans">F8</kbd> Gizle/Göster
+                </div>
                 <div class="flex items-center gap-1 bg-white/5 px-2 py-1 rounded border border-white/5">
                     <kbd class="font-sans">F9</kbd> Duraklat
                 </div>
@@ -398,9 +381,6 @@
                 <!-- Source Video Preview -->
                 <video id="crop-source-video" autoplay muted class="block max-w-full max-h-[80vh] opacity-100"></video>
                 
-                <!-- Drawing Canvas (Transparent) -->
-                <canvas id="drawing-canvas-layer"></canvas>
-
                 <!-- Draggable Crop Box -->
                 <div id="crop-box" class="absolute hidden" style="top: 10%; left: 10%; width: 50%; height: 50%;">
                     <div class="resize-handle handle-nw" data-dir="nw"></div>
@@ -421,7 +401,7 @@
         </div>
     </div>
 
-    <!-- Recording Status Bar & Drawing Tools -->
+    <!-- Recording Status Bar -->
     <div id="recording-status" class="hidden fixed top-8 left-1/2 transform -translate-x-1/2 bg-slate-900/90 backdrop-blur-md border border-white/10 pr-4 pl-6 py-2.5 rounded-full flex items-center gap-6 shadow-2xl z-[9999] transition-all duration-500 ease-in-out">
         <div class="flex items-center gap-3">
             <div class="relative flex h-3 w-3">
@@ -432,31 +412,6 @@
         </div>
         
         <div class="h-6 w-px bg-white/10"></div>
-        
-        <!-- Tools Section -->
-        <div class="flex items-center gap-2">
-            <button id="mouse-highlight-btn" class="w-9 h-9 rounded-full bg-white/5 hover:bg-white/10 text-slate-400 flex items-center justify-center transition-colors border border-white/5 tooltip-trigger active:scale-95" title="Fare Vurgulama">
-                <i class="fa-solid fa-arrow-pointer text-xs"></i>
-            </button>
-            
-            <button id="draw-mode-btn" class="w-9 h-9 rounded-full bg-white/5 hover:bg-white/10 text-slate-400 flex items-center justify-center transition-colors border border-white/5 tooltip-trigger active:scale-95" title="Çizim Modu">
-                <i class="fa-solid fa-pen-nib text-xs"></i>
-            </button>
-
-            <!-- Expanded Draw Tools (Hidden by default) -->
-            <div id="draw-tools" class="hidden flex items-center gap-2 bg-slate-800 rounded-full px-2 py-1 ml-2 border border-white/10 animate-fade-in">
-                <button class="color-btn bg-red-500 active" data-color="#ef4444"></button>
-                <button class="color-btn bg-yellow-400" data-color="#facc15"></button>
-                <button class="color-btn bg-green-500" data-color="#22c55e"></button>
-                <button class="color-btn bg-blue-500" data-color="#3b82f6"></button>
-                <div class="w-px h-4 bg-white/10 mx-1"></div>
-                <button id="clear-draw-btn" class="text-slate-400 hover:text-white px-1 text-xs" title="Temizle">
-                    <i class="fa-solid fa-trash"></i>
-                </button>
-            </div>
-        </div>
-
-        <div class="h-6 w-px bg-white/10"></div>
 
         <div class="flex gap-2">
             <button id="pause-btn" class="w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 text-yellow-500 flex items-center justify-center transition-colors border border-white/5 tooltip-trigger active:scale-95" title="Duraklat (F9)">
@@ -465,7 +420,7 @@
             <button id="stop-btn-top" class="w-10 h-10 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center shadow-lg transition-colors tooltip-trigger active:scale-95" title="Bitir (F10)">
                 <i class="fa-solid fa-stop text-sm"></i>
             </button>
-            <button id="hide-ui-btn" class="w-10 h-10 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-colors border border-white/5 ml-2 tooltip-trigger active:scale-95" title="Gizle">
+            <button id="hide-ui-btn" class="w-10 h-10 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-colors border border-white/5 ml-2 tooltip-trigger active:scale-95" title="Gizle (F8)">
                 <i class="fa-solid fa-eye-slash text-xs"></i>
             </button>
         </div>
@@ -497,15 +452,6 @@
         let cropState = { sx: 0, sy: 0, sw: 0, sh: 0 };
         let streams = { display: null, user: null };
 
-        // Drawing State
-        let isDrawingMode = false;
-        let isDrawing = false;
-        let isMouseHighlight = false;
-        let drawColor = '#ef4444';
-        let drawPaths = []; 
-        let currentPath = [];
-        let mousePos = { x: -100, y: -100 }; 
-
         const els = {
             setupPanel: document.getElementById('setup-panel'),
             resultPanel: document.getElementById('result-panel'),
@@ -513,11 +459,11 @@
             countdownOverlay: document.getElementById('countdown-overlay'),
             countdownText: document.getElementById('countdown-text'),
             cropOverlay: document.getElementById('crop-overlay'),
-            cropToolbar: document.getElementById('crop-toolbar'), // Added ID
+            cropToolbar: document.getElementById('crop-toolbar'), 
             cropSourceVideo: document.getElementById('crop-source-video'),
             cropBox: document.getElementById('crop-box'),
-            cropSizeInfo: document.getElementById('crop-size-info'),
             cropContainer: document.getElementById('crop-container'),
+            cropLabel: document.getElementById('crop-label'),
             toast: document.getElementById('toast'),
             toastMsg: document.getElementById('toast-msg'),
             
@@ -544,15 +490,7 @@
             webcamLiveFeed: document.getElementById('webcam-live-feed'),
             
             recDot: document.getElementById('rec-dot'),
-            recDotAnim: document.getElementById('rec-dot-anim'),
-            
-            // Drawing Tools
-            drawModeBtn: document.getElementById('draw-mode-btn'),
-            drawTools: document.getElementById('draw-tools'),
-            mouseHighlightBtn: document.getElementById('mouse-highlight-btn'),
-            clearDrawBtn: document.getElementById('clear-draw-btn'),
-            colorBtns: document.querySelectorAll('.color-btn'),
-            drawingCanvasLayer: document.getElementById('drawing-canvas-layer')
+            recDotAnim: document.getElementById('rec-dot-anim')
         };
 
         // --- Helpers ---
@@ -574,6 +512,12 @@
             } else {
                 document.title = "RecMaster: Modern Ekran Kaydedici";
             }
+        }
+
+        function toggleUI() {
+            els.recordingStatus.classList.toggle('ui-hidden');
+            const isHidden = els.recordingStatus.classList.contains('ui-hidden');
+            showToast(isHidden ? "Araç çubuğu gizlendi (F8)" : "Araç çubuğu gösterildi");
         }
 
         // --- UI Interactions ---
@@ -647,165 +591,6 @@
                 els.webcamPreviewLayer.classList.remove('rounded-2xl');
                 els.webcamPreviewLayer.classList.add('rounded-full');
             }
-        });
-
-        // --- DRAWING LOGIC ---
-        els.drawModeBtn.addEventListener('click', () => {
-            isDrawingMode = !isDrawingMode;
-            if(isDrawingMode) {
-                els.drawModeBtn.classList.add('text-red-400', 'bg-white/10');
-                els.drawTools.classList.remove('hidden');
-                els.drawTools.classList.add('flex');
-                els.drawingCanvasLayer.classList.add('active');
-            } else {
-                els.drawModeBtn.classList.remove('text-red-400', 'bg-white/10');
-                els.drawTools.classList.add('hidden');
-                els.drawTools.classList.remove('flex');
-                els.drawingCanvasLayer.classList.remove('active');
-            }
-        });
-
-        els.mouseHighlightBtn.addEventListener('click', () => {
-            isMouseHighlight = !isMouseHighlight;
-            if(isMouseHighlight) {
-                els.mouseHighlightBtn.classList.add('text-yellow-400', 'bg-white/10');
-            } else {
-                els.mouseHighlightBtn.classList.remove('text-yellow-400', 'bg-white/10');
-            }
-        });
-
-        els.colorBtns.forEach(btn => {
-            btn.addEventListener('click', () => {
-                els.colorBtns.forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                drawColor = btn.dataset.color;
-            });
-        });
-
-        els.clearDrawBtn.addEventListener('click', () => {
-            drawPaths = [];
-            // Clear visible canvas immediately
-            const ctx = els.drawingCanvasLayer.getContext('2d');
-            ctx.clearRect(0, 0, els.drawingCanvasLayer.width, els.drawingCanvasLayer.height);
-        });
-
-        // Canvas Interaction for Drawing
-        function setupDrawingCanvas() {
-            const canvas = els.drawingCanvasLayer;
-            const ctx = canvas.getContext('2d');
-            
-            // Match size
-            canvas.width = els.cropContainer.offsetWidth;
-            canvas.height = els.cropContainer.offsetHeight;
-
-            canvas.addEventListener('mousedown', (e) => {
-                if(!isDrawingMode) return;
-                isDrawing = true;
-                const rect = canvas.getBoundingClientRect();
-                currentPath = [{
-                    x: e.clientX - rect.left,
-                    y: e.clientY - rect.top
-                }];
-                // Start a fresh path on the visual canvas immediately
-                ctx.beginPath();
-                ctx.strokeStyle = drawColor;
-                ctx.lineWidth = 5;
-                ctx.lineCap = 'round';
-                ctx.moveTo(currentPath[0].x, currentPath[0].y);
-            });
-
-            canvas.addEventListener('mousemove', (e) => {
-                const rect = canvas.getBoundingClientRect();
-                const x = e.clientX - rect.left;
-                const y = e.clientY - rect.top;
-                
-                // Track mouse for highlight
-                mousePos = { x, y };
-
-                if(isDrawing && isDrawingMode) {
-                    currentPath.push({ x, y });
-                    
-                    // Draw on visual canvas immediately for feedback
-                    ctx.lineTo(x, y);
-                    ctx.stroke();
-                }
-            });
-
-            canvas.addEventListener('mouseup', () => {
-                if(isDrawing) {
-                    isDrawing = false;
-                    if(currentPath.length > 0) {
-                        // Store relative coordinates (0-1) to map to video size later
-                        const w = canvas.width;
-                        const h = canvas.height;
-                        const relPath = currentPath.map(p => ({ x: p.x/w, y: p.y/h }));
-                        drawPaths.push({ points: relPath, color: drawColor });
-                    }
-                    currentPath = [];
-                }
-            });
-        }
-        
-        // Loop to render Visual Feedback on the Screen (Not just recording)
-        function renderVisualFeedback() {
-            if (!isRecording && !isDrawingMode && !isMouseHighlight) return;
-            
-            const canvas = els.drawingCanvasLayer;
-            const ctx = canvas.getContext('2d');
-            
-            // Clear needed for mouse highlight animation or if we redraw paths
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
-            // 1. Draw Saved Paths
-            // We need to map relative paths back to current canvas size
-            drawPaths.forEach(path => {
-                ctx.beginPath();
-                ctx.strokeStyle = path.color;
-                ctx.lineWidth = 5;
-                ctx.lineCap = 'round';
-                path.points.forEach((p, i) => {
-                    if (i === 0) ctx.moveTo(p.x * canvas.width, p.y * canvas.height);
-                    else ctx.lineTo(p.x * canvas.width, p.y * canvas.height);
-                });
-                ctx.stroke();
-            });
-            
-            // 2. Draw Current Stroke
-            if (isDrawing && currentPath.length > 0) {
-                ctx.beginPath();
-                ctx.strokeStyle = drawColor;
-                ctx.lineWidth = 5;
-                ctx.lineCap = 'round';
-                currentPath.forEach((p, i) => {
-                    if (i === 0) ctx.moveTo(p.x, p.y);
-                    else ctx.lineTo(p.x, p.y);
-                });
-                ctx.stroke();
-            }
-            
-            // 3. Mouse Highlight
-            if (isMouseHighlight) {
-                // Ensure mouse is within bounds
-                if (mousePos.x >= 0 && mousePos.x <= canvas.width && mousePos.y >= 0 && mousePos.y <= canvas.height) {
-                    ctx.save();
-                    ctx.fillStyle = "rgba(250, 204, 21, 0.4)"; // Yellow transparent
-                    ctx.beginPath();
-                    ctx.arc(mousePos.x, mousePos.y, 20, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.restore();
-                }
-            }
-            
-            requestAnimationFrame(renderVisualFeedback);
-        }
-        
-        // Window-level mouse tracking for reliable highlight
-        window.addEventListener('mousemove', (e) => {
-            if(!els.drawingCanvasLayer) return;
-            const rect = els.drawingCanvasLayer.getBoundingClientRect();
-            // Calculate position relative to canvas
-            mousePos.x = e.clientX - rect.left;
-            mousePos.y = e.clientY - rect.top;
         });
 
         // --- STEP 1: Init Stream ---
@@ -886,15 +671,9 @@
                 const vidW = els.cropSourceVideo.videoWidth;
                 const vidH = els.cropSourceVideo.videoHeight;
                 
-                // Initialize Drawing Layer
-                setupDrawingCanvas();
-                
-                // Start Visual Feedback Loop
-                renderVisualFeedback();
-                
                 // FORCE DEFAULT FULL SCREEN MODE
                 isCropMode = false;
-                updateCropBoxMode(); // Initialize Fullscreen Box
+                updateCropBoxMode(); 
                 
                 cropState = { sx: 0, sy: 0, sw: vidW, sh: vidH };
             };
@@ -907,7 +686,7 @@
         let startX, startY, startLeft, startTop, startW, startH;
 
         els.cropContainer.addEventListener('mousedown', (e) => {
-            if(!isCropMode || isDrawingMode) return; // Disable drag if drawing or fullscreen
+            if(!isCropMode) return; 
             
             if (e.target.classList.contains('resize-handle')) {
                 isResizing = true;
@@ -926,7 +705,7 @@
         });
 
         window.addEventListener('mousemove', (e) => {
-            if(!isCropMode || isDrawingMode) return;
+            if(!isCropMode) return;
             const containerRect = els.cropContainer.getBoundingClientRect();
             
             if (isDraggingBox) {
@@ -989,7 +768,7 @@
             els.recordingStatus.classList.remove('hidden');
             els.recordingStatus.classList.remove('ui-hidden'); 
             
-            // Hide the Setup Toolbar so Recording Toolbar is clearly visible
+            // Hide the Setup Toolbar
             els.cropToolbar.classList.add('hidden');
             
             // Toggle Main Button State
@@ -1003,9 +782,8 @@
             els.cropBox.classList.add('recording-mode');
             document.querySelectorAll('.resize-handle').forEach(h => h.classList.add('hidden'));
             
-            // WEBCAM HIDE/SHOW LOGIC FOR RECORDING:
             if (isCropMode) {
-                els.webcamPreviewLayer.classList.add('hidden'); // Hide actual preview, will be drawn on canvas
+                els.webcamPreviewLayer.classList.add('hidden'); 
             } else {
                 els.cropBox.classList.add('hidden');
             }
@@ -1047,55 +825,6 @@
                     cropState.sx, cropState.sy, cropState.sw, cropState.sh, 
                     0, 0, canvas.width, canvas.height
                 );
-
-                // --- Drawing Layer & Highlights ---
-                // 1. Draw Paths (Saved)
-                drawPaths.forEach(path => {
-                    ctx.beginPath();
-                    ctx.strokeStyle = path.color;
-                    ctx.lineWidth = 5;
-                    ctx.lineCap = 'round';
-                    path.points.forEach((p, i) => {
-                        if (i === 0) ctx.moveTo(p.x * canvas.width, p.y * canvas.height);
-                        else ctx.lineTo(p.x * canvas.width, p.y * canvas.height);
-                    });
-                    ctx.stroke();
-                });
-
-                // 2. Draw Current Stroke (Live)
-                if (isDrawing && currentPath.length > 0) {
-                    ctx.beginPath();
-                    ctx.strokeStyle = drawColor;
-                    ctx.lineWidth = 5;
-                    ctx.lineCap = 'round';
-                    const visW = els.drawingCanvasLayer.width;
-                    const visH = els.drawingCanvasLayer.height;
-                    
-                    currentPath.forEach((p, i) => {
-                        const cx = (p.x / visW) * canvas.width;
-                        const cy = (p.y / visH) * canvas.height;
-                        if (i === 0) ctx.moveTo(cx, cy);
-                        else ctx.lineTo(cx, cy);
-                    });
-                    ctx.stroke();
-                }
-
-                // 3. Mouse Highlight
-                if (isMouseHighlight) {
-                    const visW = els.drawingCanvasLayer.width;
-                    const visH = els.drawingCanvasLayer.height;
-                    const cx = (mousePos.x / visW) * canvas.width;
-                    const cy = (mousePos.y / visH) * canvas.height;
-                    
-                    if (cx >= 0 && cx <= canvas.width && cy >= 0 && cy <= canvas.height) {
-                        ctx.save();
-                        ctx.fillStyle = "rgba(250, 204, 21, 0.4)"; // Yellow transparent
-                        ctx.beginPath();
-                        ctx.arc(cx, cy, 20, 0, Math.PI * 2);
-                        ctx.fill();
-                        ctx.restore();
-                    }
-                }
 
                 // --- Webcam Layer ---
                 if (useCam && streams.user) {
@@ -1188,17 +917,15 @@
 
         els.stopBtn.onclick = stopRecording;
         els.pauseBtn.onclick = togglePause;
-        
-        // Hide UI
-        els.hideUiBtn.onclick = () => {
-            els.recordingStatus.classList.add('ui-hidden');
-            showToast("Arayüz gizlendi. Kaydı durdurmak için F10 kullanın.");
-        };
+        els.hideUiBtn.onclick = toggleUI; // F8 Action
 
         // Keyboard Shortcuts
         document.addEventListener('keydown', (e) => {
             if (!isRecording) return;
-            if (e.key === 'F9') {
+            if (e.key === 'F8') {
+                e.preventDefault();
+                toggleUI();
+            } else if (e.key === 'F9') {
                 e.preventDefault();
                 togglePause();
             } else if (e.key === 'F10') {
@@ -1212,7 +939,7 @@
             clearInterval(timerInt);
             updatePageTitle();
             
-            els.cropToolbar.classList.remove('hidden'); // Show setup toolbar again
+            els.cropToolbar.classList.remove('hidden'); 
             els.recordingStatus.classList.add('hidden');
             els.cropOverlay.classList.add('hidden');
             els.resultPanel.classList.remove('hidden');
