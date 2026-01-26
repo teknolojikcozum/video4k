@@ -3,867 +3,870 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RecMaster Studio: Kayıt & Düzenleme</title>
+    <title>RecMaster Studio Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        .recording-pulse {
-            animation: pulse-red 2s infinite;
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        slate: { 850: '#151e2e', 950: '#020617' }
+                    }
+                }
+            }
         }
+    </script>
+    <style>
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+        .recording-pulse { animation: pulse-red 2s infinite; }
         @keyframes pulse-red {
             0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
             70% { box-shadow: 0 0 0 15px rgba(239, 68, 68, 0); }
             100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
         }
-        .mic-bar { transition: height 0.1s ease; }
-        .countdown-anim { animation: ping 1s cubic-bezier(0, 0, 0.2, 1) infinite; }
-        @keyframes ping {
-            75%, 100% { transform: scale(2); opacity: 0; }
+        
+        .timeline-ruler {
+            background-image: linear-gradient(90deg, #475569 1px, transparent 1px);
+            background-size: 100px 100%;
+            background-repeat: repeat-x;
         }
-        .animate-fade-in { animation: fadeIn 0.5s ease-in; }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
+        .timeline-sub-ruler {
+            background-image: linear-gradient(90deg, #334155 1px, transparent 1px);
+            background-size: 10px 100%;
+            background-repeat: repeat-x;
         }
-        /* Timeline Styles */
-        .timeline-track {
-            background-image: repeating-linear-gradient(45deg, #374151 25%, transparent 25%, transparent 75%, #374151 75%, #374151), repeating-linear-gradient(45deg, #374151 25%, #1f2937 25%, #1f2937 75%, #374151 75%, #374151);
-            background-position: 0 0, 10px 10px;
-            background-size: 20px 20px;
-        }
-        /* Custom Range Slider Styling */
+
+        /* Scrubber */
         input[type=range]::-webkit-slider-thumb {
             -webkit-appearance: none;
-            height: 24px;
-            width: 4px;
-            background: #ffffff;
-            margin-top: -10px;
+            height: 100vh; /* Full height visual guide */
+            width: 1px;
+            background: #ef4444;
+            margin-top: 0;
+            box-shadow: 0 0 4px rgba(239, 68, 68, 0.5);
             cursor: ew-resize;
-            border-radius: 0px;
-            box-shadow: 0 0 5px rgba(0,0,0,0.5);
             position: relative;
             z-index: 50;
         }
         input[type=range]::-webkit-slider-runnable-track {
             width: 100%;
-            height: 4px;
+            height: 24px;
             cursor: pointer;
-            background: transparent; /* Track handled manually */
+            background: transparent;
         }
-        .layer-item.active {
-            border-left: 4px solid #3b82f6;
-            background-color: #1e293b;
+
+        .layer-block {
+            transition: all 0.1s;
+        }
+        .layer-block:hover {
+            filter: brightness(1.1);
+        }
+        .layer-block.selected {
+            border: 1px solid #60a5fa;
+            z-index: 10;
         }
     </style>
 </head>
-<body class="bg-slate-950 text-white font-sans h-screen flex flex-col overflow-hidden">
+<body class="bg-slate-950 text-slate-200 font-sans h-screen flex flex-col overflow-hidden select-none">
 
     <!-- Header -->
-    <header class="bg-slate-900 border-b border-slate-800 p-3 z-20 shrink-0">
-        <div class="container mx-auto flex justify-between items-center">
-            <div class="flex items-center gap-3">
-                <div class="w-8 h-8 bg-gradient-to-br from-red-600 to-purple-600 rounded-lg flex items-center justify-center shadow-lg shadow-purple-500/20">
-                    <i class="fa-solid fa-film text-white text-sm"></i>
-                </div>
-                <div>
-                    <h1 class="font-bold text-lg tracking-wide">RecMaster <span class="text-purple-400">Studio</span></h1>
-                </div>
+    <header class="bg-slate-900 border-b border-slate-800 h-12 flex items-center px-4 justify-between shrink-0 z-50">
+        <div class="flex items-center gap-3">
+            <div class="w-7 h-7 bg-gradient-to-br from-indigo-600 to-violet-600 rounded flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                <i class="fa-solid fa-layer-group text-white text-xs"></i>
             </div>
-            <div class="flex gap-4 text-xs text-slate-400">
-                <span id="mode-indicator" class="bg-slate-800 px-2 py-1 rounded border border-slate-700">Kayıt Modu</span>
-            </div>
+            <h1 class="font-bold text-sm tracking-wide text-slate-100">RecMaster <span class="text-indigo-400 font-normal">Studio Pro</span></h1>
+        </div>
+        <div class="flex items-center gap-4">
+            <div id="mode-display" class="text-xs px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-400">Bekleniyor</div>
         </div>
     </header>
 
-    <!-- Main Content -->
-    <main class="flex-1 flex flex-col relative overflow-hidden">
+    <!-- Main Workspace -->
+    <main class="flex-1 flex overflow-hidden relative">
         
-        <!-- Toast Notification -->
-        <div id="toast" class="hidden absolute top-4 right-4 bg-blue-600 text-white px-4 py-3 rounded shadow-lg z-50 flex items-center animate-fade-in">
-            <i class="fa-solid fa-info-circle mr-2"></i>
-            <span id="toast-msg">Bilgi mesajı</span>
+        <!-- Toast & Overlays -->
+        <div id="toast" class="hidden absolute top-4 right-4 bg-indigo-600 text-white px-4 py-3 rounded shadow-lg z-[60] flex items-center animate-fade-in text-sm font-medium">
+            <i class="fa-solid fa-circle-info mr-2"></i> <span id="toast-msg">Mesaj</span>
+        </div>
+        
+        <div id="countdown-overlay" class="hidden absolute inset-0 bg-slate-950/95 z-[70] flex items-center justify-center">
+            <div class="text-9xl font-bold text-white animate-ping" id="countdown-text">3</div>
         </div>
 
-        <!-- Countdown Overlay -->
-        <div id="countdown-overlay" class="hidden absolute inset-0 bg-slate-950/95 z-50 flex items-center justify-center">
-            <div class="text-9xl font-bold text-white countdown-anim" id="countdown-text">3</div>
+        <div id="render-overlay" class="hidden absolute inset-0 bg-slate-950/95 z-[70] flex flex-col items-center justify-center">
+            <div class="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+            <h2 class="text-xl font-bold text-white mb-1">Video Oluşturuluyor</h2>
+            <p class="text-slate-400 text-sm mb-4">Efektler işleniyor, lütfen bekleyin...</p>
+            <div class="w-64 h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                <div id="render-progress" class="h-full bg-indigo-500 w-0 transition-all duration-100"></div>
+            </div>
+            <p id="render-status" class="text-xs text-slate-500 mt-2">0%</p>
+        </div>
+
+        <!-- VIEW 1: Recorder Setup (Center Stage) -->
+        <div id="setup-panel" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-950 z-40">
+            <div class="w-full max-w-2xl bg-slate-900/50 backdrop-blur-sm rounded-2xl p-8 border border-slate-800/60 shadow-2xl text-center relative overflow-hidden group">
+                <div class="absolute inset-0 bg-gradient-to-tr from-indigo-500/5 via-transparent to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
+                
+                <h2 class="text-2xl font-bold text-white mb-2 relative">Yeni Proje Oluştur</h2>
+                <p class="text-slate-400 text-sm mb-8 relative">Ekran kaydı alarak düzenlemeye başlayın.</p>
+
+                <div class="grid grid-cols-2 gap-4 mb-8 relative">
+                    <label class="cursor-pointer bg-slate-800 hover:bg-slate-750 hover:border-indigo-500/30 border border-slate-700 rounded-xl p-4 flex flex-col items-center justify-center gap-3 transition-all group/item">
+                        <div class="w-10 h-10 rounded-full bg-slate-700 group-hover/item:bg-indigo-500/20 flex items-center justify-center transition-colors">
+                            <i class="fa-solid fa-microphone text-indigo-400"></i>
+                        </div>
+                        <span class="text-sm font-medium">Mikrofon</span>
+                        <input type="checkbox" id="mic-toggle" class="accent-indigo-500">
+                    </label>
+
+                    <label class="cursor-pointer bg-slate-800 hover:bg-slate-750 hover:border-purple-500/30 border border-slate-700 rounded-xl p-4 flex flex-col items-center justify-center gap-3 transition-all group/item">
+                        <div class="w-10 h-10 rounded-full bg-slate-700 group-hover/item:bg-purple-500/20 flex items-center justify-center transition-colors">
+                            <i class="fa-solid fa-camera text-purple-400"></i>
+                        </div>
+                        <span class="text-sm font-medium">Yüz Kamerası</span>
+                        <input type="checkbox" id="cam-toggle" class="accent-purple-500">
+                    </label>
+                </div>
+
+                <button id="start-btn" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-3 rounded-lg shadow-lg shadow-indigo-900/20 flex items-center justify-center gap-2 transition-transform active:scale-[0.98] relative">
+                    <i class="fa-solid fa-circle text-[10px] animate-pulse"></i> Kaydı Başlat
+                </button>
+            </div>
         </div>
 
         <!-- Recording Status Bar (Floating) -->
-        <div id="recording-status" class="hidden absolute top-6 left-1/2 transform -translate-x-1/2 bg-slate-900/90 backdrop-blur border border-slate-700 px-6 py-3 rounded-full flex items-center gap-6 shadow-2xl z-40 transition-all">
+        <div id="recording-status" class="hidden absolute top-6 left-1/2 transform -translate-x-1/2 bg-slate-900/90 backdrop-blur border border-slate-700 pr-2 pl-6 py-2 rounded-full flex items-center gap-6 shadow-2xl z-[80]">
             <div class="flex items-center gap-3">
-                <div class="w-3 h-3 bg-red-500 rounded-full recording-pulse" id="rec-dot"></div>
-                <span class="font-mono text-xl w-24" id="timer">00:00:00</span>
+                <div class="w-2.5 h-2.5 bg-red-500 rounded-full recording-pulse"></div>
+                <span class="font-mono text-lg w-20 tracking-wider" id="timer">00:00</span>
             </div>
-            <div class="h-8 w-px bg-slate-700"></div>
-            <div class="flex gap-2">
-                <button id="pause-btn" class="w-10 h-10 flex items-center justify-center bg-slate-800 hover:bg-slate-700 text-yellow-400 rounded-full transition-colors">
-                    <i class="fa-solid fa-pause" id="pause-icon"></i>
-                </button>
-                <button id="stop-btn-top" class="w-10 h-10 flex items-center justify-center bg-red-600 hover:bg-red-700 text-white rounded-full transition-colors shadow-lg shadow-red-500/30">
-                    <i class="fa-solid fa-stop"></i>
-                </button>
-            </div>
+            <div class="h-6 w-px bg-slate-700"></div>
+            <button id="stop-btn-top" class="bg-red-500 hover:bg-red-600 text-white w-8 h-8 rounded-full flex items-center justify-center shadow-lg transition-colors">
+                <i class="fa-solid fa-stop text-xs"></i>
+            </button>
         </div>
 
-        <!-- VIEW 1: Setup Panel -->
-        <div id="setup-panel" class="flex-1 flex flex-col items-center justify-center p-6">
-            <div class="w-full max-w-3xl bg-slate-900 rounded-2xl p-8 shadow-2xl border border-slate-800 text-center relative overflow-hidden">
-                <div class="absolute -top-20 -right-20 w-64 h-64 bg-purple-600/10 rounded-full blur-3xl"></div>
-                <div class="absolute -bottom-20 -left-20 w-64 h-64 bg-red-600/10 rounded-full blur-3xl"></div>
-                
-                <h2 class="text-3xl font-bold mb-2 relative z-10">Stüdyonu Hazırla</h2>
-                <p class="text-slate-400 mb-8 relative z-10">Kayıt yapın, ardından dahili editörde kesin ve düzenleyin.</p>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8 relative z-10">
-                    <!-- Microphone -->
-                    <label class="cursor-pointer bg-slate-800/50 hover:bg-slate-800 border border-slate-700 rounded-xl p-4 flex items-center justify-between transition-all group select-none">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center group-hover:bg-slate-600 transition-colors">
-                                <i class="fa-solid fa-microphone text-lg text-blue-400"></i>
-                            </div>
-                            <div class="text-left">
-                                <div class="font-semibold">Mikrofon</div>
-                                <div class="text-xs text-slate-400">Sesli anlatım</div>
-                            </div>
-                        </div>
-                        <input type="checkbox" id="mic-toggle" class="w-5 h-5 accent-blue-500">
-                    </label>
-
-                    <!-- Camera -->
-                    <label class="cursor-pointer bg-slate-800/50 hover:bg-slate-800 border border-slate-700 rounded-xl p-4 flex items-center justify-between transition-all group select-none">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center group-hover:bg-slate-600 transition-colors">
-                                <i class="fa-solid fa-camera text-lg text-purple-400"></i>
-                            </div>
-                            <div class="text-left">
-                                <div class="font-semibold">Yüz Kamerası</div>
-                                <div class="text-xs text-slate-400">Sağ alt köşe</div>
-                            </div>
-                        </div>
-                        <input type="checkbox" id="cam-toggle" class="w-5 h-5 accent-purple-500">
-                    </label>
-                </div>
-
-                <button id="start-btn" class="w-full bg-gradient-to-r from-red-600 to-purple-600 hover:from-red-500 hover:to-purple-500 text-white font-bold text-lg py-4 rounded-xl shadow-lg shadow-purple-900/40 transform transition-all hover:scale-[1.01] active:scale-95 flex items-center justify-center gap-3 relative z-10">
-                    <div class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
-                        <i class="fa-solid fa-circle text-white text-xs"></i>
-                    </div>
-                    Kaydı Başlat
-                </button>
-            </div>
-        </div>
-
-        <!-- VIEW 2: Editor Panel (Initially Hidden) -->
-        <div id="editor-panel" class="hidden flex-1 flex flex-col h-full animate-fade-in">
+        <!-- VIEW 2: Editor Interface (Hidden by default) -->
+        <div id="editor-ui" class="hidden absolute inset-0 flex flex-col z-30 bg-slate-950">
             
-            <!-- Editor Toolbar -->
-            <div class="bg-slate-900 border-b border-slate-800 p-2 flex flex-wrap justify-between items-center shrink-0 gap-2">
-                <div class="flex items-center gap-2">
-                    <!-- Editing Tools -->
-                    <div class="flex bg-slate-800 rounded border border-slate-700 overflow-hidden">
-                        <button id="set-in-btn" class="px-3 py-1.5 hover:bg-slate-700 text-slate-300 border-r border-slate-700 text-xs" title="Başlangıç Noktası (In)">
-                            <i class="fa-solid fa-bracket-left mr-1"></i> Başlangıç
-                        </button>
-                        <button id="set-out-btn" class="px-3 py-1.5 hover:bg-slate-700 text-slate-300 border-r border-slate-700 text-xs" title="Bitiş Noktası (Out)">
-                             Bitiş <i class="fa-solid fa-bracket-right ml-1"></i>
-                        </button>
-                        <button id="reset-trim-btn" class="px-3 py-1.5 hover:bg-slate-700 text-red-400 text-xs" title="Kesimi Sıfırla">
-                            <i class="fa-solid fa-times"></i>
-                        </button>
-                    </div>
-
-                    <div class="h-6 w-px bg-slate-700 mx-1"></div>
-
-                    <button id="add-text-btn" class="bg-slate-800 hover:bg-slate-700 text-white px-3 py-1.5 rounded text-xs flex items-center gap-2 border border-slate-700 transition-colors">
-                        <i class="fa-solid fa-font"></i> Yazı
+            <!-- Top Section: Tools, Preview, Properties -->
+            <div class="flex-1 flex overflow-hidden border-b border-slate-800">
+                
+                <!-- Left Sidebar: Tools -->
+                <div class="w-14 bg-slate-900 border-r border-slate-800 flex flex-col items-center py-4 gap-4 shrink-0">
+                    <button class="w-9 h-9 rounded hover:bg-slate-800 text-slate-400 hover:text-indigo-400 flex items-center justify-center transition-colors tooltip-trigger" title="Seçim Aracı">
+                        <i class="fa-solid fa-arrow-pointer"></i>
                     </button>
-                    
-                    <div class="relative group">
-                         <select id="speed-select" class="bg-slate-800 hover:bg-slate-700 text-white px-2 py-1.5 rounded text-xs border border-slate-700 appearance-none cursor-pointer pr-6">
-                            <option value="0.5">0.5x</option>
-                            <option value="1" selected>1.0x</option>
-                            <option value="1.5">1.5x</option>
-                            <option value="2">2.0x</option>
-                        </select>
-                        <i class="fa-solid fa-gauge-high absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
-                    </div>
-
-                    <button id="snapshot-btn" class="bg-slate-800 hover:bg-slate-700 text-blue-400 px-3 py-1.5 rounded text-xs flex items-center gap-2 border border-slate-700 transition-colors" title="Ekran Görüntüsü Al">
+                    <button id="add-text-btn" class="w-9 h-9 rounded hover:bg-slate-800 text-slate-400 hover:text-indigo-400 flex items-center justify-center transition-colors tooltip-trigger" title="Yazı Ekle">
+                        <i class="fa-solid fa-t"></i>
+                    </button>
+                    <button id="snapshot-btn" class="w-9 h-9 rounded hover:bg-slate-800 text-slate-400 hover:text-indigo-400 flex items-center justify-center transition-colors tooltip-trigger" title="Anlık Görüntü">
                         <i class="fa-solid fa-camera"></i>
                     </button>
-                </div>
-
-                <div class="flex items-center gap-2">
-                     <button id="new-record-btn" class="text-slate-400 hover:text-white px-3 py-1 text-xs">
-                        <i class="fa-solid fa-trash mr-1"></i> Sil
-                    </button>
-                    <button id="export-btn" class="bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400 text-white px-4 py-1.5 rounded text-sm font-bold flex items-center gap-2 shadow-lg shadow-green-900/20 transition-all">
-                        <i class="fa-solid fa-download"></i> Videoyu Çıkar
+                    <div class="w-6 h-px bg-slate-800 my-1"></div>
+                    <button id="split-layer-btn" class="w-9 h-9 rounded hover:bg-slate-800 text-slate-400 hover:text-red-400 flex items-center justify-center transition-colors tooltip-trigger" title="Katmanı Böl (Split)">
+                        <i class="fa-solid fa-scissors"></i>
                     </button>
                 </div>
-            </div>
 
-            <div class="flex-1 flex overflow-hidden">
-                <!-- Left: Canvas Area -->
-                <div class="flex-1 bg-black flex items-center justify-center relative group p-4 bg-[radial-gradient(#222_1px,transparent_1px)] [background-size:16px_16px]">
-                    <canvas id="editor-canvas" class="max-w-full max-h-full shadow-2xl border border-slate-800"></canvas>
-                    
-                    <!-- Canvas Controls Overlay -->
-                    <div class="absolute bottom-6 left-1/2 transform -translate-x-1/2 bg-slate-900/80 backdrop-blur px-4 py-2 rounded-full flex items-center gap-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button id="editor-play-btn" class="text-white hover:text-blue-400 text-xl w-8 h-8 flex items-center justify-center transition-transform hover:scale-110">
-                            <i class="fa-solid fa-play"></i>
-                        </button>
-                        <span id="editor-time" class="font-mono text-sm w-16 text-center">00:00</span>
-                    </div>
-                </div>
-
-                <!-- Right: Properties Panel -->
-                <div class="w-64 bg-slate-900 border-l border-slate-800 flex flex-col shrink-0">
-                    <div class="p-3 border-b border-slate-800 font-bold text-xs text-slate-300 uppercase tracking-wider">
-                        Katman Ayarları
+                <!-- Center: Viewport -->
+                <div class="flex-1 bg-black/50 flex flex-col relative overflow-hidden">
+                    <div class="flex-1 flex items-center justify-center p-8 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCI+PGNpcmNsZSBjeD0iMSIgY3k9IjEiIHI9IjEiIGZpbGw9IiMzMzMiLz48L3N2Zz4=')]">
+                        <canvas id="editor-canvas" class="max-w-full max-h-full shadow-2xl ring-1 ring-slate-800"></canvas>
                     </div>
                     
-                    <!-- Selected Layer Properties -->
-                    <div id="layer-props" class="p-4 border-b border-slate-800 hidden bg-slate-800/30">
-                        <label class="block text-xs text-slate-500 mb-1">Metin</label>
-                        <input type="text" id="prop-text" class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-sm mb-3 focus:border-blue-500 outline-none">
+                    <!-- Transport Controls -->
+                    <div class="h-12 bg-slate-900 border-t border-slate-800 flex items-center justify-center gap-6">
+                        <span id="editor-time-current" class="font-mono text-xs text-slate-400 w-16 text-right">00:00:00</span>
                         
-                        <div class="flex gap-2 mb-3">
-                            <div class="flex-1">
-                                <label class="block text-xs text-slate-500 mb-1">Renk</label>
-                                <input type="color" id="prop-color" class="w-full h-8 bg-transparent cursor-pointer rounded border border-slate-700">
+                        <div class="flex items-center gap-2">
+                             <button id="btn-seek-start" class="text-slate-400 hover:text-white p-2"><i class="fa-solid fa-backward-step"></i></button>
+                            <button id="editor-play-btn" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-white text-slate-900 flex items-center justify-center transition-transform hover:scale-105">
+                                <i class="fa-solid fa-play text-xs ml-0.5"></i>
+                            </button>
+                            <button id="btn-seek-end" class="text-slate-400 hover:text-white p-2"><i class="fa-solid fa-forward-step"></i></button>
+                        </div>
+                        
+                        <span id="editor-time-total" class="font-mono text-xs text-slate-500 w-16 text-left">00:00:00</span>
+                    </div>
+                </div>
+
+                <!-- Right Sidebar: Properties -->
+                <div class="w-64 bg-slate-900 border-l border-slate-800 flex flex-col shrink-0">
+                    <div class="h-10 border-b border-slate-800 flex items-center px-4 font-bold text-xs uppercase tracking-wider text-slate-500">
+                        Özellikler
+                    </div>
+                    
+                    <!-- Layer Properties (Conditional) -->
+                    <div id="layer-props" class="p-4 space-y-4 hidden">
+                        <div>
+                            <label class="text-xs text-slate-400 block mb-1.5">Metin İçeriği</label>
+                            <textarea id="prop-text" rows="2" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-sm text-white focus:border-indigo-500 focus:outline-none resize-none"></textarea>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="text-xs text-slate-400 block mb-1.5">Renk</label>
+                                <div class="flex items-center gap-2 bg-slate-950 border border-slate-700 rounded-lg p-1">
+                                    <input type="color" id="prop-color" class="w-6 h-6 rounded cursor-pointer bg-transparent border-none p-0">
+                                    <span class="text-xs text-slate-500 font-mono">HEX</span>
+                                </div>
                             </div>
-                            <div class="flex-1">
-                                <label class="block text-xs text-slate-500 mb-1">Boyut (px)</label>
-                                <input type="number" id="prop-size" class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-sm" min="10" max="200">
+                            <div>
+                                <label class="text-xs text-slate-400 block mb-1.5">Boyut</label>
+                                <input type="number" id="prop-size" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-1.5 text-sm text-white focus:border-indigo-500 outline-none">
                             </div>
                         </div>
-                        <button id="delete-layer-btn" class="w-full bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/20 rounded py-1.5 text-xs transition-colors">
-                            <i class="fa-solid fa-trash mr-1"></i> Katmanı Sil
-                        </button>
+                        <div class="pt-4 border-t border-slate-800">
+                            <button id="delete-layer-btn" class="w-full py-2 rounded border border-red-500/20 text-red-400 hover:bg-red-500/10 text-xs transition-colors">
+                                <i class="fa-solid fa-trash mr-2"></i> Sil
+                            </button>
+                        </div>
                     </div>
                     
-                    <!-- Layers List -->
-                    <div id="layers-list" class="flex-1 overflow-y-auto p-2 space-y-1">
-                        <!-- Dynamic content -->
-                        <div class="text-center text-xs text-slate-600 mt-10 italic">Yazı katmanı yok.</div>
+                    <!-- Global Settings (When no layer selected) -->
+                    <div id="global-props" class="p-4 space-y-4">
+                        <div>
+                            <label class="text-xs text-slate-400 block mb-1.5">Video Hızı</label>
+                            <select id="speed-select" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-sm text-white focus:border-indigo-500 outline-none">
+                                <option value="0.5">0.5x (Yavaş)</option>
+                                <option value="1.0" selected>1.0x (Normal)</option>
+                                <option value="1.5">1.5x (Hızlı)</option>
+                                <option value="2.0">2.0x (Çok Hızlı)</option>
+                            </select>
+                        </div>
+                        <div class="bg-slate-800/50 rounded-lg p-3 text-xs text-slate-400 border border-slate-800">
+                            <i class="fa-solid fa-circle-info mr-1 text-indigo-400"></i>
+                            Videoyu kesmek için alttaki zaman çizelgesinde "Giriş" ve "Çıkış" noktalarını ayarlayın.
+                        </div>
+                        <button id="export-btn" class="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-3 rounded-lg shadow-lg flex items-center justify-center gap-2 mt-4 transition-all">
+                            <i class="fa-solid fa-download"></i> Dışa Aktar
+                        </button>
+                        <button id="new-record-btn" class="w-full text-slate-500 hover:text-slate-300 text-xs py-2">
+                            Projeyi Kapat
+                        </button>
                     </div>
                 </div>
             </div>
 
             <!-- Bottom: Timeline -->
-            <div class="h-auto bg-slate-900 border-t border-slate-800 shrink-0 flex flex-col">
-                <!-- Time Scrubber & Trim Visualization -->
-                <div class="h-8 bg-slate-950 border-b border-slate-800 flex items-center px-4 relative group">
-                    <!-- Trim Areas (Visual) -->
-                    <div class="absolute top-0 bottom-0 left-4 right-4 pointer-events-none">
-                        <!-- Left Trimmed Area (Grayed out) -->
-                        <div id="trim-visual-left" class="absolute left-0 top-0 bottom-0 bg-black/70 z-0 w-0 border-r border-red-500/50"></div>
-                        <!-- Active Area (Blue hint) -->
-                        <div id="trim-visual-active" class="absolute left-0 right-0 top-0 bottom-0 bg-blue-500/5 z-0"></div>
-                        <!-- Right Trimmed Area (Grayed out) -->
-                        <div id="trim-visual-right" class="absolute right-0 top-0 bottom-0 bg-black/70 z-0 w-0 border-l border-red-500/50"></div>
+            <div class="h-64 bg-slate-900 border-t border-slate-800 flex flex-col shrink-0">
+                
+                <!-- Toolbar for Timeline -->
+                <div class="h-10 border-b border-slate-800 flex items-center justify-between px-2 bg-slate-850">
+                    <div class="flex items-center gap-1">
+                        <button id="set-in-btn" class="h-7 px-3 rounded hover:bg-slate-700 text-xs font-medium text-slate-300 border border-transparent hover:border-slate-600">
+                            <i class="fa-solid fa-bracket-left mr-1 text-indigo-400"></i> Giriş (In)
+                        </button>
+                        <button id="set-out-btn" class="h-7 px-3 rounded hover:bg-slate-700 text-xs font-medium text-slate-300 border border-transparent hover:border-slate-600">
+                            Çıkış (Out) <i class="fa-solid fa-bracket-right ml-1 text-indigo-400"></i>
+                        </button>
+                        <div class="w-px h-4 bg-slate-700 mx-2"></div>
+                        <button id="reset-trim-btn" class="h-7 px-2 rounded hover:bg-slate-700 text-xs text-slate-400" title="Kesimi Sıfırla">
+                            <i class="fa-solid fa-rotate-left"></i>
+                        </button>
                     </div>
-
-                    <!-- Range Input -->
-                    <input type="range" id="timeline-scrubber" min="0" max="100" value="0" step="0.1" class="w-full h-full opacity-0 absolute inset-0 z-20 cursor-pointer">
-                    
-                    <!-- Custom Scrubber Track -->
-                    <div id="scrubber-track" class="w-full h-1 bg-slate-700 relative rounded pointer-events-none z-10">
-                        <div id="scrubber-fill" class="h-full bg-blue-500 w-0 rounded"></div>
-                        <div id="scrubber-thumb" class="w-1 h-4 bg-white absolute top-1/2 transform -translate-y-1/2 shadow-lg -ml-0.5" style="left: 0%"></div>
-                    </div>
+                    <div class="text-[10px] text-slate-500 uppercase tracking-widest font-bold mr-2">Timeline</div>
                 </div>
 
-                <!-- Tracks -->
-                <div class="h-32 overflow-y-auto p-2 space-y-1 custom-scrollbar bg-slate-900">
-                    <!-- Video Track -->
-                    <div class="flex items-center h-8 bg-slate-800/50 rounded border border-slate-700 overflow-hidden relative timeline-track">
-                        <div class="w-20 bg-slate-800 h-full flex items-center justify-center border-r border-slate-700 text-xs font-bold text-blue-400 z-10">VIDEO</div>
-                        <div class="flex-1 h-full relative">
-                            <div class="absolute inset-0 bg-blue-900/20 flex items-center justify-center text-xs text-blue-300/40 tracking-widest">
-                                <i class="fa-solid fa-video mr-2"></i> ANA KAYIT
+                <!-- Timeline Tracks Area -->
+                <div class="flex-1 overflow-y-auto overflow-x-hidden relative custom-scrollbar bg-slate-950" id="timeline-container">
+                    
+                    <!-- Time Ruler -->
+                    <div class="h-6 w-full sticky top-0 z-20 bg-slate-900 border-b border-slate-800 relative">
+                        <div class="absolute inset-0 timeline-ruler opacity-20"></div>
+                        <div class="absolute inset-0 timeline-sub-ruler opacity-10"></div>
+                        
+                        <!-- Range Scrubber Input (Invisible but interactive) -->
+                        <input type="range" id="timeline-scrubber" min="0" max="100" value="0" step="0.01" class="absolute inset-0 w-full h-full opacity-0 cursor-ew-resize z-30">
+                        
+                        <!-- Playhead (Visual) -->
+                        <div id="playhead" class="absolute top-0 bottom-0 w-px bg-red-500 h-[1000px] pointer-events-none z-10 translate-x-0 transition-transform duration-75 ease-linear flex flex-col items-center">
+                            <div class="w-3 h-3 -mt-1.5 bg-red-500 rotate-45 transform shadow-sm"></div>
+                        </div>
+
+                         <!-- Trim Indicators (Visual Overlay on top of tracks) -->
+                        <div id="trim-overlay-left" class="absolute top-6 bottom-0 left-0 bg-black/60 border-r border-indigo-500/50 z-20 pointer-events-none w-0 backdrop-grayscale"></div>
+                        <div id="trim-overlay-right" class="absolute top-6 bottom-0 right-0 bg-black/60 border-l border-indigo-500/50 z-20 pointer-events-none w-0 backdrop-grayscale"></div>
+                    </div>
+
+                    <!-- Tracks Content -->
+                    <div class="p-2 space-y-1 relative min-h-[200px]">
+                        
+                        <!-- Video Track -->
+                        <div class="h-10 bg-slate-900 rounded border border-slate-800 flex overflow-hidden relative group">
+                            <div class="w-24 shrink-0 bg-slate-850 border-r border-slate-800 flex items-center px-3 text-xs font-medium text-indigo-400 select-none z-10">
+                                <i class="fa-solid fa-video mr-2 opacity-50"></i> V1
+                            </div>
+                            <div class="flex-1 relative overflow-hidden bg-slate-900">
+                                <!-- Thumbnails placeholder pattern -->
+                                <div class="absolute inset-0 flex opacity-20">
+                                    <div class="flex-1 border-r border-slate-700/50 bg-[linear-gradient(45deg,transparent_45%,#fff_50%,transparent_55%)] bg-[length:10px_10px]"></div>
+                                    <div class="flex-1 border-r border-slate-700/50"></div>
+                                    <div class="flex-1 border-r border-slate-700/50"></div>
+                                    <div class="flex-1 border-r border-slate-700/50"></div>
+                                    <div class="flex-1 border-r border-slate-700/50"></div>
+                                </div>
+                                <div class="absolute inset-0 flex items-center justify-center text-[10px] text-slate-600 font-mono tracking-widest uppercase">
+                                    Ana Kayıt (Video)
+                                </div>
                             </div>
                         </div>
-                    </div>
 
-                     <!-- Audio Track -->
-                     <div class="flex items-center h-8 bg-slate-800/50 rounded border border-slate-700 overflow-hidden relative timeline-track">
-                        <div class="w-20 bg-slate-800 h-full flex items-center justify-center border-r border-slate-700 text-xs font-bold text-green-400 z-10">SES</div>
-                        <div class="flex-1 h-full relative">
-                             <div class="absolute inset-0 bg-green-900/20 flex items-center overflow-hidden opacity-50">
-                                <div class="w-full h-4 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0IiBoZWlnaHQ9IjEwIj48cmVjdCB3aWR0aD0iMiIgaGVpZ2h0PSI2IiB4PSIxIiB5PSIyIiBmaWxsPSIjNGFkZThjIiAvPjwvc3ZnPg==')] opacity-50"></div>
-                             </div>
+                        <!-- Audio Track -->
+                        <div class="h-8 bg-slate-900 rounded border border-slate-800 flex overflow-hidden relative opacity-80">
+                            <div class="w-24 shrink-0 bg-slate-850 border-r border-slate-800 flex items-center px-3 text-xs font-medium text-emerald-400 select-none z-10">
+                                <i class="fa-solid fa-volume-high mr-2 opacity-50"></i> A1
+                            </div>
+                            <div class="flex-1 relative overflow-hidden bg-emerald-900/10">
+                                <div class="absolute inset-0 opacity-30 flex items-center">
+                                    <div class="w-full h-4 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0IiBoZWlnaHQ9IjEwIj48cmVjdCB3aWR0aD0iMiIgaGVpZ2h0PSI2IiB4PSIxIiB5PSIyIiBmaWxsPSIjMzRkMzk5IiAvPjwvc3ZnPg==')]"></div>
+                                </div>
+                            </div>
                         </div>
+
+                        <!-- Dynamic Text Tracks Area -->
+                        <div id="text-tracks-container" class="space-y-1 pt-1"></div>
                     </div>
-                    
-                    <!-- Text Tracks Container -->
-                    <div id="text-tracks-area" class="space-y-1"></div>
                 </div>
             </div>
-        </div>
-
-        <!-- VIEW 3: Rendering Overlay -->
-        <div id="render-overlay" class="hidden absolute inset-0 bg-slate-950/95 z-50 flex flex-col items-center justify-center">
-            <div class="w-16 h-16 border-4 border-green-500 border-t-transparent rounded-full animate-spin mb-6"></div>
-            <h2 class="text-2xl font-bold mb-2">Video İşleniyor...</h2>
-            <p class="text-slate-400 mb-6">Kırpma ve efektler uygulanıyor. Lütfen bekleyin.</p>
-            <div class="w-64 h-2 bg-slate-800 rounded overflow-hidden">
-                <div id="render-progress" class="h-full bg-green-500 w-0 transition-all duration-100"></div>
-            </div>
-            <p id="render-status" class="text-xs text-slate-500 mt-2">0%</p>
         </div>
 
     </main>
-    
-    <!-- Hidden Elements -->
+
+    <!-- Hidden Video Elements -->
     <video id="src-video-screen" autoplay muted class="hidden"></video>
     <video id="src-video-cam" autoplay muted class="hidden"></video>
-    <!-- Source for Editor (Hidden) -->
     <video id="editor-source-video" class="hidden" playsinline></video>
-    <!-- Hidden canvas for render capturing -->
     <canvas id="compositor-canvas" class="hidden"></canvas>
 
-    <!-- Script Logic -->
     <script>
-        // --- CORE VARIABLES ---
+        /**
+         * RecMaster Studio Pro Logic
+         */
+        
+        // --- State ---
+        let state = {
+            mode: 'setup', // setup, recording, editing
+            isRecording: false,
+            isPlaying: false,
+            duration: 0,
+            currentTime: 0,
+            trimStart: 0,
+            trimEnd: 0,
+            playbackSpeed: 1.0,
+            selectedLayerId: null
+        };
+
         let mediaRecorder;
         let recordedChunks = [];
-        let recordedBlobUrl = null;
-        let recordingStream = null;
-        let audioContext;
-        let isRecording = false;
-        let timerInterval;
-        let totalSeconds = 0;
-        
-        // --- EDITOR VARIABLES ---
-        let editorCanvas = document.getElementById('editor-canvas');
-        let editorCtx = editorCanvas.getContext('2d');
-        let editorVideo = document.getElementById('editor-source-video');
-        let textLayers = []; 
-        let selectedLayerId = null;
-        let isEditorPlaying = false;
-        let animationFrameId;
-        let videoDuration = 0;
-        let isDragging = false;
-        let dragTargetId = null;
-        
-        // --- TRIM & EDIT VARIABLES ---
-        let trimStartTime = 0;
-        let trimEndTime = 0;
-        let playbackSpeed = 1.0;
+        let streams = { display: null, user: null };
+        let textLayers = []; // { id, text, x, y, size, color, startPct, endPct }
+        let timerInt;
+        let animFrame;
 
-        // --- DOM ELEMENTS ---
-        const startBtn = document.getElementById('start-btn');
-        const setupPanel = document.getElementById('setup-panel');
-        const editorPanel = document.getElementById('editor-panel');
-        const renderOverlay = document.getElementById('render-overlay');
-        const micToggle = document.getElementById('mic-toggle');
-        const camToggle = document.getElementById('cam-toggle');
-        const toast = document.getElementById('toast');
-        const toastMsg = document.getElementById('toast-msg');
+        // --- Elements ---
+        const els = {
+            startBtn: document.getElementById('start-btn'),
+            stopBtn: document.getElementById('stop-btn-top'),
+            setupPanel: document.getElementById('setup-panel'),
+            recordingStatus: document.getElementById('recording-status'),
+            editorUi: document.getElementById('editor-ui'),
+            video: document.getElementById('editor-source-video'),
+            canvas: document.getElementById('editor-canvas'),
+            ctx: document.getElementById('editor-canvas').getContext('2d'),
+            scrubber: document.getElementById('timeline-scrubber'),
+            playhead: document.getElementById('playhead'),
+            timeCurrent: document.getElementById('editor-time-current'),
+            timeTotal: document.getElementById('editor-time-total'),
+            timer: document.getElementById('timer'),
+            countdown: document.getElementById('countdown-overlay'),
+            renderOverlay: document.getElementById('render-overlay'),
+            toast: document.getElementById('toast'),
+            trimLeft: document.getElementById('trim-overlay-left'),
+            trimRight: document.getElementById('trim-overlay-right'),
+            textTracks: document.getElementById('text-tracks-container'),
+            layerProps: document.getElementById('layer-props'),
+            globalProps: document.getElementById('global-props'),
+            btnPlay: document.getElementById('editor-play-btn'),
+            btnSeekStart: document.getElementById('btn-seek-start'),
+            btnSeekEnd: document.getElementById('btn-seek-end')
+        };
 
-        // Helper: Toast
-        function showToast(msg) {
-            toastMsg.innerText = msg;
-            toast.classList.remove('hidden');
-            setTimeout(() => toast.classList.add('hidden'), 3000);
-        }
+        // --- Utils ---
+        const fmtTime = s => {
+            const m = Math.floor(s / 60).toString().padStart(2, '0');
+            const sec = Math.floor(s % 60).toString().padStart(2, '0');
+            const ms = Math.floor((s % 1) * 100).toString().padStart(2, '0');
+            return `${m}:${sec}:${ms}`;
+        };
 
-        // ==========================================
-        // PART 1: RECORDING LOGIC
-        // ==========================================
+        const toast = (msg) => {
+            document.getElementById('toast-msg').innerText = msg;
+            els.toast.classList.remove('hidden');
+            setTimeout(() => els.toast.classList.add('hidden'), 3000);
+        };
 
-        startBtn.addEventListener('click', async () => {
+        // --- Recording Phase ---
+        els.startBtn.onclick = async () => {
+            const mic = document.getElementById('mic-toggle').checked;
+            const cam = document.getElementById('cam-toggle').checked;
+
             try {
-                // 1. Get Screen
-                const displayStream = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 60 }, audio: true });
+                streams.display = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 60 }, audio: true });
                 
-                // 2. Get User Media
-                const useMic = micToggle.checked;
-                const useCam = camToggle.checked;
-                let userStream = null;
-
-                if (useMic || useCam) {
+                if (mic || cam) {
                     try {
-                        userStream = await navigator.mediaDevices.getUserMedia({
-                            audio: useMic,
-                            video: useCam ? { width: 320, height: 240 } : false
+                        streams.user = await navigator.mediaDevices.getUserMedia({ 
+                            audio: mic, 
+                            video: cam ? { width: 320, height: 240 } : false 
                         });
-                    } catch (e) {
-                        showToast("Kamera/Mikrofon izni alınamadı.");
-                    }
+                    } catch(e) { toast('Kamera/Mikrofon izni alınamadı.'); }
                 }
 
-                // 3. Start Countdown
-                setupPanel.classList.add('hidden');
-                document.getElementById('countdown-overlay').classList.remove('hidden');
-                let count = 3;
-                const cInt = setInterval(() => {
-                    count--;
-                    document.getElementById('countdown-text').innerText = count;
-                    if (count <= 0) {
+                // Countdown
+                els.setupPanel.classList.add('hidden');
+                els.countdown.classList.remove('hidden');
+                let c = 3;
+                let cInt = setInterval(() => {
+                    c--;
+                    document.getElementById('countdown-text').innerText = c;
+                    if(c<=0) {
                         clearInterval(cInt);
-                        document.getElementById('countdown-overlay').classList.add('hidden');
-                        startRecording(displayStream, userStream, useCam);
+                        els.countdown.classList.add('hidden');
+                        startRecording(cam);
                     }
                 }, 1000);
 
-            } catch (err) {
-                console.warn(err);
-            }
-        });
+            } catch (e) { console.error(e); }
+        };
 
-        async function startRecording(displayStream, userStream, useCam) {
-            const canvas = document.getElementById('compositor-canvas');
-            const ctx = canvas.getContext('2d');
-            const srcScreen = document.getElementById('src-video-screen');
-            const srcCam = document.getElementById('src-video-cam');
-            
-            srcScreen.srcObject = displayStream;
-            await srcScreen.play();
-            canvas.width = srcScreen.videoWidth;
-            canvas.height = srcScreen.videoHeight;
+        async function startRecording(useCam) {
+            state.isRecording = true;
+            document.getElementById('mode-display').innerText = "KAYITTA";
+            document.getElementById('mode-display').className = "text-xs px-2 py-0.5 rounded bg-red-900/30 border border-red-800 text-red-400 animate-pulse";
+            els.recordingStatus.classList.remove('hidden');
 
-            let finalStream;
-            
+            const compCanvas = document.getElementById('compositor-canvas');
+            const compCtx = compCanvas.getContext('2d');
+            const vScreen = document.getElementById('src-video-screen');
+            const vCam = document.getElementById('src-video-cam');
+
+            vScreen.srcObject = streams.display;
+            await vScreen.play();
+            compCanvas.width = vScreen.videoWidth;
+            compCanvas.height = vScreen.videoHeight;
+
             // Audio Mixing
             const ac = new AudioContext();
             const dest = ac.createMediaStreamDestination();
-            if(displayStream.getAudioTracks().length) ac.createMediaStreamSource(displayStream).connect(dest);
-            if(userStream && userStream.getAudioTracks().length) {
-                const ms = ac.createMediaStreamSource(userStream);
-                const g = ac.createGain(); g.gain.value = 1.5;
-                ms.connect(g).connect(dest);
+            if(streams.display.getAudioTracks().length) ac.createMediaStreamSource(streams.display).connect(dest);
+            if(streams.user && streams.user.getAudioTracks().length) {
+                const ms = ac.createMediaStreamSource(streams.user);
+                ms.connect(ac.createGain()).connect(dest);
             }
 
-            // Compositor Loop
-            if (useCam && userStream && userStream.getVideoTracks().length) {
-                srcCam.srcObject = userStream;
-                await srcCam.play();
-                
+            // Draw Loop
+            if(useCam && streams.user && streams.user.getVideoTracks().length) {
+                vCam.srcObject = streams.user;
+                await vCam.play();
                 function draw() {
-                    if(!isRecording) return;
-                    ctx.drawImage(srcScreen, 0, 0, canvas.width, canvas.height);
-                    // Facecam (Circle Bottom Right)
-                    const s = canvas.height * 0.25;
-                    const p = 30;
-                    const x = canvas.width - s - p;
-                    const y = canvas.height - s - p;
-                    ctx.save();
-                    ctx.beginPath();
-                    ctx.arc(x + s/2, y + s/2, s/2, 0, Math.PI*2);
-                    ctx.clip();
-                    ctx.drawImage(srcCam, x, y, s, s);
-                    ctx.strokeStyle = "white"; ctx.lineWidth = 5; ctx.stroke();
-                    ctx.restore();
+                    if(!state.isRecording) return;
+                    compCtx.drawImage(vScreen, 0, 0);
+                    // PIP
+                    const s = compCanvas.height * 0.25;
+                    const m = 40;
+                    const x = compCanvas.width - s - m;
+                    const y = compCanvas.height - s - m;
+                    compCtx.save();
+                    compCtx.beginPath();
+                    compCtx.arc(x+s/2, y+s/2, s/2, 0, Math.PI*2);
+                    compCtx.clip();
+                    compCtx.drawImage(vCam, x, y, s, s);
+                    compCtx.lineWidth = 6; compCtx.strokeStyle = "#fff"; compCtx.stroke();
+                    compCtx.restore();
                     requestAnimationFrame(draw);
                 }
-                isRecording = true;
                 draw();
-                finalStream = canvas.captureStream(60);
             } else {
-                finalStream = displayStream; // Just screen
-                isRecording = true;
+                // Simple pass through if no cam, but using canvas for consistency
+                 function drawSimple() {
+                    if(!state.isRecording) return;
+                    compCtx.drawImage(vScreen, 0, 0);
+                    requestAnimationFrame(drawSimple);
+                }
+                drawSimple();
             }
 
-            // Merge Audio
-            if (dest.stream.getAudioTracks().length) {
-                finalStream.addTrack(dest.stream.getAudioTracks()[0]);
-            }
+            const stream = compCanvas.captureStream(60);
+            if(dest.stream.getAudioTracks().length) stream.addTrack(dest.stream.getAudioTracks()[0]);
 
-            // Recorder
-            mediaRecorder = new MediaRecorder(finalStream, { mimeType: 'video/webm;codecs=vp9' });
+            mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp9' });
             recordedChunks = [];
-            mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recordedChunks.push(e.data); };
-            mediaRecorder.onstop = () => {
-                isRecording = false;
-                // Cleanup
-                displayStream.getTracks().forEach(t=>t.stop());
-                if(userStream) userStream.getTracks().forEach(t=>t.stop());
-                ac.close();
-                
-                // Go to Editor
-                initEditor();
-            };
-
-            // Native Stop
-            displayStream.getVideoTracks()[0].onended = () => mediaRecorder.stop();
+            mediaRecorder.ondataavailable = e => { if(e.data.size>0) recordedChunks.push(e.data); };
+            mediaRecorder.onstop = stopRecording;
+            
+            // Native stop
+            streams.display.getVideoTracks()[0].onended = () => mediaRecorder.stop();
 
             mediaRecorder.start();
-            document.getElementById('recording-status').classList.remove('hidden');
-            document.getElementById('mode-indicator').innerText = "🔴 KAYITTA";
-            document.getElementById('mode-indicator').classList.add('text-red-400', 'border-red-900');
             
-            // Timer
-            totalSeconds = 0;
-            timerInterval = setInterval(() => {
-                totalSeconds++;
-                const m = Math.floor(totalSeconds/60).toString().padStart(2,'0');
-                const s = (totalSeconds%60).toString().padStart(2,'0');
-                document.getElementById('timer').innerText = `00:${m}:${s}`;
+            let secs = 0;
+            timerInt = setInterval(() => {
+                secs++;
+                const m = Math.floor(secs/60).toString().padStart(2,'0');
+                const s = (secs%60).toString().padStart(2,'0');
+                els.timer.innerText = `${m}:${s}`;
             }, 1000);
         }
 
-        document.getElementById('stop-btn-top').onclick = () => mediaRecorder.stop();
-        
-        // ==========================================
-        // PART 2: EDITOR LOGIC
-        // ==========================================
+        els.stopBtn.onclick = () => mediaRecorder.stop();
 
+        function stopRecording() {
+            state.isRecording = false;
+            clearInterval(timerInt);
+            streams.display.getTracks().forEach(t=>t.stop());
+            if(streams.user) streams.user.getTracks().forEach(t=>t.stop());
+            
+            els.recordingStatus.classList.add('hidden');
+            initEditor();
+        }
+
+        // --- Editing Phase ---
         function initEditor() {
-            clearInterval(timerInterval);
-            document.getElementById('recording-status').classList.add('hidden');
-            setupPanel.classList.add('hidden');
-            editorPanel.classList.remove('hidden');
-            document.getElementById('mode-indicator').innerText = "🎬 STÜDYO";
-            document.getElementById('mode-indicator').className = "bg-blue-900/30 px-2 py-1 rounded border border-blue-800 text-blue-400";
+            els.editorUi.classList.remove('hidden');
+            document.getElementById('mode-display').innerText = "DÜZENLEME";
+            document.getElementById('mode-display').className = "text-xs px-2 py-0.5 rounded bg-indigo-900/30 border border-indigo-800 text-indigo-400";
 
-            // Load Video
             const blob = new Blob(recordedChunks, { type: 'video/webm' });
-            recordedBlobUrl = URL.createObjectURL(blob);
-            editorVideo.src = recordedBlobUrl;
+            const url = URL.createObjectURL(blob);
+            els.video.src = url;
             
-            editorVideo.onloadedmetadata = () => {
-                videoDuration = editorVideo.duration;
-                trimEndTime = videoDuration; // Default: Full length
-                
-                // Set canvas size to match video
-                editorCanvas.width = editorVideo.videoWidth;
-                editorCanvas.height = editorVideo.videoHeight;
-                drawEditorFrame();
-                updateTimelineVisuals();
+            els.video.onloadedmetadata = () => {
+                state.duration = els.video.duration;
+                state.trimEnd = state.duration;
+                els.timeTotal.innerText = fmtTime(state.duration);
+                els.canvas.width = els.video.videoWidth;
+                els.canvas.height = els.video.videoHeight;
+                renderFrame();
             };
         }
 
-        // --- TRIM & PLAYBACK LOGIC ---
-        const playBtn = document.getElementById('editor-play-btn');
-        const scrubber = document.getElementById('timeline-scrubber');
-        
-        playBtn.onclick = togglePlay;
-        
-        // Loop or Stop at Trim End
-        editorVideo.addEventListener('timeupdate', () => {
-            if (isEditorPlaying) {
-                // If we pass the trim end, loop back to start
-                if (editorVideo.currentTime >= trimEndTime) {
-                    editorVideo.currentTime = trimStartTime;
-                    // Optional: Pause instead of loop -> togglePlay();
-                }
-            }
-            // Update UI if playing
-            if(isEditorPlaying) updateTimelineUI();
+        // --- Timeline Logic ---
+        els.scrubber.addEventListener('input', (e) => {
+            const pct = parseFloat(e.target.value);
+            const t = (pct / 100) * state.duration;
+            els.video.currentTime = t;
+            state.currentTime = t;
+            updateUI();
+            if(!state.isPlaying) renderFrame();
         });
 
-        function togglePlay() {
-            if (isEditorPlaying) {
-                editorVideo.pause();
-                isEditorPlaying = false;
-                cancelAnimationFrame(animationFrameId);
-                playBtn.innerHTML = '<i class="fa-solid fa-play"></i>';
-            } else {
-                // If playhead is out of bounds, jump to start
-                if (editorVideo.currentTime < trimStartTime || editorVideo.currentTime >= trimEndTime) {
-                    editorVideo.currentTime = trimStartTime;
-                }
-                editorVideo.playbackRate = playbackSpeed;
-                editorVideo.play();
-                isEditorPlaying = true;
-                drawEditorFrame();
-                playBtn.innerHTML = '<i class="fa-solid fa-pause"></i>';
-            }
-        }
-
-        // Scrubber Logic
-        scrubber.addEventListener('input', (e) => {
-            const pct = e.target.value;
-            const time = (pct / 100) * videoDuration;
-            editorVideo.currentTime = time;
-            if(!isEditorPlaying) {
-                drawEditorFrame();
-                updateTimelineUI();
-            }
-        });
-
-        // Trim Controls
-        document.getElementById('set-in-btn').onclick = () => {
-            if (editorVideo.currentTime >= trimEndTime) {
-                showToast("Başlangıç noktası bitişten sonra olamaz!");
+        // Split Logic
+        document.getElementById('split-layer-btn').onclick = () => {
+            if(!state.selectedLayerId) {
+                toast("Lütfen önce bir yazı katmanı seçin.");
                 return;
             }
-            trimStartTime = editorVideo.currentTime;
-            updateTimelineVisuals();
-            showToast("Başlangıç kesim noktası ayarlandı.");
-        };
+            // Find layer
+            const layerIndex = textLayers.findIndex(l => l.id === state.selectedLayerId);
+            if(layerIndex === -1) return;
 
-        document.getElementById('set-out-btn').onclick = () => {
-             if (editorVideo.currentTime <= trimStartTime) {
-                showToast("Bitiş noktası başlangıçtan önce olamaz!");
+            const layer = textLayers[layerIndex];
+            const currentPct = (state.currentTime / state.duration) * 100;
+
+            // Check boundaries
+            if(currentPct <= layer.startPct || currentPct >= layer.endPct) {
+                toast("Oynatma çubuğu katmanın üzerinde değil.");
                 return;
             }
-            trimEndTime = editorVideo.currentTime;
-            updateTimelineVisuals();
-            showToast("Bitiş kesim noktası ayarlandı.");
-        };
 
-        document.getElementById('reset-trim-btn').onclick = () => {
-            trimStartTime = 0;
-            trimEndTime = videoDuration;
-            updateTimelineVisuals();
-            showToast("Kesimler sıfırlandı.");
-        };
-
-        document.getElementById('speed-select').onchange = (e) => {
-            playbackSpeed = parseFloat(e.target.value);
-            if(isEditorPlaying) editorVideo.playbackRate = playbackSpeed;
-        };
-
-        document.getElementById('snapshot-btn').onclick = () => {
-            // Create a temp link to download current canvas state
-            const link = document.createElement('a');
-            link.download = `Snapshot_${Date.now()}.png`;
-            link.href = editorCanvas.toDataURL();
-            link.click();
-            showToast("Ekran görüntüsü kaydedildi!");
-        };
-
-        function updateTimelineVisuals() {
-            const leftPct = (trimStartTime / videoDuration) * 100;
-            const rightPct = ((videoDuration - trimEndTime) / videoDuration) * 100;
+            // Clone and adjust
+            const newLayer = { ...layer, id: Date.now(), startPct: currentPct };
+            layer.endPct = currentPct; // Cut first one
             
-            document.getElementById('trim-visual-left').style.width = `${leftPct}%`;
-            document.getElementById('trim-visual-right').style.width = `${rightPct}%`;
-            // Active area calc handled by left/right styling automatically via css borders/position
-        }
-
-        function updateTimelineUI() {
-            const pct = (editorVideo.currentTime / videoDuration) * 100;
-            document.getElementById('scrubber-fill').style.width = `${pct}%`;
-            document.getElementById('scrubber-thumb').style.left = `${pct}%`;
-            document.getElementById('timeline-scrubber').value = pct;
-            
-            const m = Math.floor(editorVideo.currentTime/60).toString().padStart(2,'0');
-            const s = Math.floor(editorVideo.currentTime%60).toString().padStart(2,'0');
-            document.getElementById('editor-time').innerText = `${m}:${s}`;
-        }
-
-        // --- DRAWING LOOP ---
-        function drawEditorFrame() {
-            // 1. Draw Video
-            editorCtx.drawImage(editorVideo, 0, 0, editorCanvas.width, editorCanvas.height);
-
-            // 2. Draw Text Layers
-            textLayers.forEach(layer => {
-                editorCtx.font = `bold ${layer.size}px Arial`;
-                editorCtx.fillStyle = layer.color;
-                editorCtx.textAlign = "center";
-                editorCtx.textBaseline = "middle";
-                
-                // Selection Border
-                if (layer.id === selectedLayerId) {
-                    const metrics = editorCtx.measureText(layer.text);
-                    const h = layer.size;
-                    const w = metrics.width;
-                    const p = 10;
-                    editorCtx.save();
-                    editorCtx.strokeStyle = "#3b82f6";
-                    editorCtx.lineWidth = 4;
-                    editorCtx.setLineDash([10, 5]);
-                    editorCtx.strokeRect(layer.x - w/2 - p, layer.y - h/2 - p, w + p*2, h + p*2);
-                    editorCtx.restore();
-                }
-
-                editorCtx.fillText(layer.text, layer.x, layer.y);
-            });
-
-            if (isEditorPlaying) {
-                animationFrameId = requestAnimationFrame(drawEditorFrame);
-            }
-        }
-
-        // --- TEXT LAYERS & DRAGGING (UNCHANGED LOGIC) ---
-        document.getElementById('add-text-btn').onclick = () => {
-            const newLayer = {
-                id: Date.now(),
-                text: "Yeni Metin",
-                x: editorCanvas.width / 2,
-                y: editorCanvas.height / 2,
-                color: "#ffffff",
-                size: 60
-            };
             textLayers.push(newLayer);
-            selectLayer(newLayer.id);
-            if(!isEditorPlaying) drawEditorFrame();
-            updateLayersList();
+            renderTimelineTracks();
+            toast("Katman bölündü.");
+            renderFrame();
         };
 
-        function updateLayersList() {
-            const list = document.getElementById('layers-list');
-            const trackArea = document.getElementById('text-tracks-area');
-            list.innerHTML = '';
-            trackArea.innerHTML = '';
-            textLayers.forEach(layer => {
-                const item = document.createElement('div');
-                item.className = `p-2 rounded bg-slate-950 border border-slate-700 cursor-pointer text-sm flex justify-between items-center layer-item ${layer.id === selectedLayerId ? 'active' : ''}`;
-                item.innerHTML = `<span class="truncate w-32 font-medium">${layer.text}</span> <i class="fa-solid fa-pen text-slate-500 text-xs"></i>`;
-                item.onclick = () => { selectLayer(layer.id); if(!isEditorPlaying) drawEditorFrame(); };
-                list.appendChild(item);
-                
-                const track = document.createElement('div');
-                track.className = "h-6 bg-blue-900/40 rounded border border-blue-800 relative overflow-hidden text-xs flex items-center px-2 text-blue-300 truncate";
-                track.innerText = "T: " + layer.text;
-                trackArea.appendChild(track);
-            });
+        function updateUI() {
+            // Update Scrubber Position
+            const pct = (state.currentTime / state.duration) * 100;
+            els.scrubber.value = pct;
+            els.playhead.style.left = `${pct}%`;
+            els.timeCurrent.innerText = fmtTime(state.currentTime);
+
+            // Loop trim
+            if(state.isPlaying && state.currentTime >= state.trimEnd) {
+                els.video.currentTime = state.trimStart;
+            }
         }
+
+        // --- Editor Render Loop ---
+        function renderFrame() {
+            // Draw Video
+            els.ctx.drawImage(els.video, 0, 0, els.canvas.width, els.canvas.height);
+
+            // Draw Layers
+            const pct = (state.currentTime / state.duration) * 100;
+            
+            textLayers.forEach(l => {
+                if(pct >= l.startPct && pct <= l.endPct) {
+                    els.ctx.save();
+                    els.ctx.font = `bold ${l.size}px Arial`;
+                    els.ctx.fillStyle = l.color;
+                    els.ctx.textAlign = "center";
+                    els.ctx.textBaseline = "middle";
+                    
+                    // Selection Box
+                    if(l.id === state.selectedLayerId) {
+                        const m = els.ctx.measureText(l.text);
+                        const w = m.width + 20;
+                        const h = l.size + 20;
+                        els.ctx.strokeStyle = "#60a5fa";
+                        els.ctx.lineWidth = 4;
+                        els.ctx.setLineDash([6, 4]);
+                        els.ctx.strokeRect(l.x - w/2, l.y - h/2, w, h);
+                        
+                        // Handles (Visual only)
+                        els.ctx.fillStyle = "#60a5fa";
+                        els.ctx.fillRect(l.x - w/2 - 5, l.y - h/2 - 5, 10, 10);
+                        els.ctx.fillRect(l.x + w/2 - 5, l.y + h/2 - 5, 10, 10);
+                        // Revert fill
+                        els.ctx.fillStyle = l.color;
+                    }
+
+                    els.ctx.shadowColor = "rgba(0,0,0,0.5)";
+                    els.ctx.shadowBlur = 4;
+                    els.ctx.fillText(l.text, l.x, l.y);
+                    els.ctx.restore();
+                }
+            });
+
+            if(state.isPlaying) requestAnimationFrame(renderFrame);
+        }
+
+        // --- Controls ---
+        els.btnPlay.onclick = () => {
+            if(state.isPlaying) {
+                els.video.pause();
+                state.isPlaying = false;
+                els.btnPlay.innerHTML = '<i class="fa-solid fa-play text-xs ml-0.5"></i>';
+            } else {
+                if(state.currentTime >= state.trimEnd) els.video.currentTime = state.trimStart;
+                els.video.playbackRate = state.playbackSpeed;
+                els.video.play();
+                state.isPlaying = true;
+                els.btnPlay.innerHTML = '<i class="fa-solid fa-pause text-xs"></i>';
+                renderFrame();
+            }
+        };
+
+        els.video.addEventListener('timeupdate', () => {
+            state.currentTime = els.video.currentTime;
+            updateUI();
+        });
+
+        // Trim
+        document.getElementById('set-in-btn').onclick = () => {
+            state.trimStart = state.currentTime;
+            updateTrimUI();
+        };
+        document.getElementById('set-out-btn').onclick = () => {
+            state.trimEnd = state.currentTime;
+            updateTrimUI();
+        };
+        document.getElementById('reset-trim-btn').onclick = () => {
+            state.trimStart = 0;
+            state.trimEnd = state.duration;
+            updateTrimUI();
+        };
+
+        function updateTrimUI() {
+            const l = (state.trimStart / state.duration) * 100;
+            const r = ((state.duration - state.trimEnd) / state.duration) * 100;
+            els.trimLeft.style.width = `${l}%`;
+            els.trimRight.style.width = `${r}%`;
+        }
+
+        // --- Layers Logic ---
+        document.getElementById('add-text-btn').onclick = () => {
+            const id = Date.now();
+            textLayers.push({
+                id: id,
+                text: 'Yeni Metin',
+                x: els.canvas.width / 2,
+                y: els.canvas.height / 2,
+                size: 60,
+                color: '#ffffff',
+                startPct: 0,
+                endPct: 100
+            });
+            selectLayer(id);
+            renderTimelineTracks();
+            renderFrame();
+        };
 
         function selectLayer(id) {
-            selectedLayerId = id;
-            const layer = textLayers.find(l => l.id === id);
-            if (layer) {
-                document.getElementById('layer-props').classList.remove('hidden');
-                document.getElementById('prop-text').value = layer.text;
-                document.getElementById('prop-color').value = layer.color;
-                document.getElementById('prop-size').value = layer.size;
+            state.selectedLayerId = id;
+            if(id) {
+                const l = textLayers.find(x => x.id === id);
+                els.layerProps.classList.remove('hidden');
+                els.globalProps.classList.add('hidden');
+                document.getElementById('prop-text').value = l.text;
+                document.getElementById('prop-color').value = l.color;
+                document.getElementById('prop-size').value = l.size;
             } else {
-                document.getElementById('layer-props').classList.add('hidden');
+                els.layerProps.classList.add('hidden');
+                els.globalProps.classList.remove('hidden');
             }
-            updateLayersList();
+            renderTimelineTracks(); // Update selection highlight
+            renderFrame();
         }
 
-        // Property Listeners
+        function renderTimelineTracks() {
+            els.textTracks.innerHTML = '';
+            textLayers.forEach(l => {
+                const div = document.createElement('div');
+                div.className = `h-6 rounded text-[10px] flex items-center px-2 cursor-pointer relative overflow-hidden layer-block ${l.id === state.selectedLayerId ? 'bg-indigo-600 text-white selected' : 'bg-slate-800 text-slate-300 border border-slate-700'}`;
+                
+                // Position logic based on pct
+                div.style.marginLeft = `${l.startPct}%`;
+                div.style.width = `${l.endPct - l.startPct}%`;
+                div.innerText = l.text;
+                
+                div.onclick = (e) => {
+                    e.stopPropagation();
+                    selectLayer(l.id);
+                };
+
+                els.textTracks.appendChild(div);
+            });
+        }
+
+        // Layer Properties Inputs
         document.getElementById('prop-text').oninput = (e) => {
-            const l = textLayers.find(l => l.id === selectedLayerId);
-            if(l) { l.text = e.target.value; if(!isEditorPlaying) drawEditorFrame(); updateLayersList(); }
+            const l = textLayers.find(x => x.id === state.selectedLayerId);
+            if(l) { l.text = e.target.value; renderFrame(); renderTimelineTracks(); }
         };
         document.getElementById('prop-color').oninput = (e) => {
-            const l = textLayers.find(l => l.id === selectedLayerId);
-            if(l) { l.color = e.target.value; if(!isEditorPlaying) drawEditorFrame(); }
+            const l = textLayers.find(x => x.id === state.selectedLayerId);
+            if(l) { l.color = e.target.value; renderFrame(); }
         };
         document.getElementById('prop-size').oninput = (e) => {
-            const l = textLayers.find(l => l.id === selectedLayerId);
-            if(l) { l.size = parseInt(e.target.value); if(!isEditorPlaying) drawEditorFrame(); }
+            const l = textLayers.find(x => x.id === state.selectedLayerId);
+            if(l) { l.size = parseInt(e.target.value); renderFrame(); }
         };
         document.getElementById('delete-layer-btn').onclick = () => {
-            textLayers = textLayers.filter(l => l.id !== selectedLayerId);
-            selectedLayerId = null;
-            document.getElementById('layer-props').classList.add('hidden');
-            if(!isEditorPlaying) drawEditorFrame();
-            updateLayersList();
+            textLayers = textLayers.filter(x => x.id !== state.selectedLayerId);
+            selectLayer(null);
         };
 
-        // Mouse Dragging
-        function getMousePos(evt) {
-            const rect = editorCanvas.getBoundingClientRect();
-            const scaleX = editorCanvas.width / rect.width;
-            const scaleY = editorCanvas.height / rect.height;
-            return {
-                x: (evt.clientX - rect.left) * scaleX,
-                y: (evt.clientY - rect.top) * scaleY
-            };
-        }
-        editorCanvas.addEventListener('mousedown', (e) => {
-            const pos = getMousePos(e);
-            for (let i = textLayers.length - 1; i >= 0; i--) {
-                const layer = textLayers[i];
-                const dist = Math.sqrt(Math.pow(pos.x - layer.x, 2) + Math.pow(pos.y - layer.y, 2));
-                if (dist < layer.size * 2) { 
-                    selectLayer(layer.id);
+        // Canvas Interaction (Drag)
+        let isDragging = false;
+        els.canvas.addEventListener('mousedown', (e) => {
+            const rect = els.canvas.getBoundingClientRect();
+            const x = (e.clientX - rect.left) * (els.canvas.width / rect.width);
+            const y = (e.clientY - rect.top) * (els.canvas.height / rect.height);
+            
+            // Hit test
+            for(let i=textLayers.length-1; i>=0; i--) {
+                const l = textLayers[i];
+                // Simple box hit test
+                const d = Math.sqrt((x-l.x)**2 + (y-l.y)**2);
+                if(d < l.size) { // Approx hit
+                    selectLayer(l.id);
                     isDragging = true;
-                    dragTargetId = layer.id;
-                    if(!isEditorPlaying) drawEditorFrame();
                     return;
                 }
             }
-            selectedLayerId = null;
-            document.getElementById('layer-props').classList.add('hidden');
-            updateLayersList();
-            if(!isEditorPlaying) drawEditorFrame();
+            selectLayer(null);
         });
-        editorCanvas.addEventListener('mousemove', (e) => {
-            if (isDragging && dragTargetId) {
-                const pos = getMousePos(e);
-                const layer = textLayers.find(l => l.id === dragTargetId);
-                if (layer) { layer.x = pos.x; layer.y = pos.y; if(!isEditorPlaying) drawEditorFrame(); }
+
+        els.canvas.addEventListener('mousemove', (e) => {
+            if(isDragging && state.selectedLayerId) {
+                const rect = els.canvas.getBoundingClientRect();
+                const x = (e.clientX - rect.left) * (els.canvas.width / rect.width);
+                const y = (e.clientY - rect.top) * (els.canvas.height / rect.height);
+                const l = textLayers.find(x => x.id === state.selectedLayerId);
+                l.x = x; l.y = y;
+                renderFrame();
             }
         });
-        editorCanvas.addEventListener('mouseup', () => { isDragging = false; dragTargetId = null; });
 
-        // ==========================================
-        // PART 3: EXPORT / RENDER (UPDATED FOR TRIM)
-        // ==========================================
-        
+        els.canvas.addEventListener('mouseup', () => isDragging = false);
+
+        // --- Export ---
         document.getElementById('export-btn').onclick = async () => {
-            if(isEditorPlaying) togglePlay();
+            if(state.isPlaying) els.btnPlay.click();
             
-            renderOverlay.classList.remove('hidden');
+            els.renderOverlay.classList.remove('hidden');
             
-            // Capture Canvas Stream
-            const exportStream = editorCanvas.captureStream(60);
+            // Setup recorder
+            const stream = els.canvas.captureStream(60);
             
-            // Audio workaround
-            const acExport = new AudioContext();
-            const sourceNode = acExport.createMediaElementSource(editorVideo);
-            const destNode = acExport.createMediaStreamDestination();
-            sourceNode.connect(destNode);
-            sourceNode.connect(acExport.destination); 
+            // Audio from video element (needs workaround to capture while seeking)
+            const ac = new AudioContext();
+            const source = ac.createMediaElementSource(els.video);
+            const dest = ac.createMediaStreamDestination();
+            source.connect(dest);
+            source.connect(ac.destination); // Mute locally?
+            
+            if(dest.stream.getAudioTracks().length) stream.addTrack(dest.stream.getAudioTracks()[0]);
 
-            if (destNode.stream.getAudioTracks().length > 0) {
-                exportStream.addTrack(destNode.stream.getAudioTracks()[0]);
-            }
-            
-            const recorder = new MediaRecorder(exportStream, { mimeType: 'video/webm;codecs=vp9' });
+            const rec = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp9' });
             const chunks = [];
-            recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
+            rec.ondataavailable = e => { if(e.data.size>0) chunks.push(e.data); };
             
-            recorder.onstop = () => {
-                acExport.close();
-                const blob = new Blob(chunks, { type: 'video/webm' });
-                const url = URL.createObjectURL(blob);
+            rec.onstop = () => {
+                const b = new Blob(chunks, { type: 'video/webm' });
+                const u = URL.createObjectURL(b);
                 const a = document.createElement('a');
-                a.href = url;
-                a.download = `RecMaster_Edited_${Date.now()}.webm`;
+                a.href = u;
+                a.download = `RecMaster_Pro_Export.webm`;
                 a.click();
-                
-                renderOverlay.classList.add('hidden');
-                showToast("Video indiriliyor...");
-                
-                // Reset playback settings
-                editorVideo.currentTime = trimStartTime;
-                editorVideo.playbackRate = 1.0;
+                els.renderOverlay.classList.add('hidden');
+                toast("İndirme başladı.");
             };
 
-            recorder.start();
+            rec.start();
 
-            // RENDER LOGIC: Seek to Trim Start, Play until Trim End
-            editorVideo.currentTime = trimStartTime;
-            editorVideo.playbackRate = playbackSpeed; // Render at selected speed
+            // Playback for render
+            els.video.currentTime = state.trimStart;
+            await els.video.play();
             
-            await editorVideo.play();
-            
-            const updateRenderLoop = () => {
-                drawEditorFrame();
+            const renderLoop = () => {
+                renderFrame();
+                const p = ((els.video.currentTime - state.trimStart) / (state.trimEnd - state.trimStart)) * 100;
+                document.getElementById('render-progress').style.width = `${p}%`;
+                document.getElementById('render-status').innerText = Math.round(p) + '%';
                 
-                // Progress within trimmed area
-                const duration = trimEndTime - trimStartTime;
-                const current = editorVideo.currentTime - trimStartTime;
-                let pct = (current / duration) * 100;
-                if(pct > 100) pct = 100;
-                if(pct < 0) pct = 0;
-
-                document.getElementById('render-progress').style.width = `${pct}%`;
-                document.getElementById('render-status').innerText = Math.round(pct) + "%";
-
-                // Stop if we reach trimEndTime
-                if (!editorVideo.paused && !editorVideo.ended && editorVideo.currentTime < trimEndTime) {
-                    requestAnimationFrame(updateRenderLoop);
+                if(els.video.currentTime < state.trimEnd && !els.video.ended) {
+                    requestAnimationFrame(renderLoop);
                 } else {
-                    recorder.stop();
-                    editorVideo.pause();
+                    rec.stop();
+                    els.video.pause();
                 }
             };
-            
-            updateRenderLoop();
+            renderLoop();
+        };
+
+        // Snapshot
+        document.getElementById('snapshot-btn').onclick = () => {
+            const a = document.createElement('a');
+            a.download = 'snapshot.png';
+            a.href = els.canvas.toDataURL();
+            a.click();
+            toast("Anlık görüntü alındı");
         };
 
         document.getElementById('new-record-btn').onclick = () => location.reload();
