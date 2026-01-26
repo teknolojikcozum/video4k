@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RecMaster Studio Pro</title>
+    <title>RecMaster Lite: Ekran Kaydedici</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script>
@@ -18,126 +18,148 @@
         }
     </script>
     <style>
-        /* Custom Scrollbar */
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: #0f172a; }
-        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
-        ::-webkit-scrollbar-thumb:hover { background: #475569; }
-
         .recording-pulse { animation: pulse-red 2s infinite; }
         @keyframes pulse-red {
             0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
             70% { box-shadow: 0 0 0 15px rgba(239, 68, 68, 0); }
             100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
         }
+        .animate-fade-in { animation: fadeIn 0.5s ease-in; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
         
-        .timeline-ruler {
-            background-image: linear-gradient(90deg, #475569 1px, transparent 1px);
-            background-size: 100px 100%;
-            background-repeat: repeat-x;
+        /* Crop Box Styles */
+        #crop-container {
+            user-select: none;
+            touch-action: none;
         }
-        .timeline-sub-ruler {
-            background-image: linear-gradient(90deg, #334155 1px, transparent 1px);
-            background-size: 10px 100%;
-            background-repeat: repeat-x;
+        #crop-box {
+            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.7);
+            cursor: move;
         }
-
-        /* Scrubber */
-        input[type=range]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            height: 100vh; /* Full height visual guide */
-            width: 1px;
-            background: #ef4444;
-            margin-top: 0;
-            box-shadow: 0 0 4px rgba(239, 68, 68, 0.5);
-            cursor: ew-resize;
-            position: relative;
-            z-index: 50;
+        .resize-handle {
+            width: 12px;
+            height: 12px;
+            background-color: white;
+            border: 2px solid #ef4444;
+            position: absolute;
+            border-radius: 50%;
+            z-index: 20;
         }
-        input[type=range]::-webkit-slider-runnable-track {
-            width: 100%;
-            height: 24px;
-            cursor: pointer;
-            background: transparent;
-        }
-
-        .layer-block {
-            transition: all 0.1s;
-        }
-        .layer-block:hover {
-            filter: brightness(1.1);
-        }
-        .layer-block.selected {
-            border: 1px solid #60a5fa;
-            z-index: 10;
-        }
+        /* Corners */
+        .handle-nw { top: -6px; left: -6px; cursor: nw-resize; }
+        .handle-ne { top: -6px; right: -6px; cursor: ne-resize; }
+        .handle-sw { bottom: -6px; left: -6px; cursor: sw-resize; }
+        .handle-se { bottom: -6px; right: -6px; cursor: se-resize; }
     </style>
 </head>
 <body class="bg-slate-950 text-slate-200 font-sans h-screen flex flex-col overflow-hidden select-none">
 
     <!-- Header -->
-    <header class="bg-slate-900 border-b border-slate-800 h-12 flex items-center px-4 justify-between shrink-0 z-50">
+    <header class="bg-slate-900 border-b border-slate-800 h-16 flex items-center px-6 justify-between shrink-0 z-50">
         <div class="flex items-center gap-3">
-            <div class="w-7 h-7 bg-gradient-to-br from-indigo-600 to-violet-600 rounded flex items-center justify-center shadow-lg shadow-indigo-500/20">
-                <i class="fa-solid fa-layer-group text-white text-xs"></i>
+            <div class="w-8 h-8 bg-gradient-to-br from-red-600 to-orange-600 rounded-lg flex items-center justify-center shadow-lg shadow-red-500/20">
+                <i class="fa-solid fa-crop-simple text-white text-sm"></i>
             </div>
-            <h1 class="font-bold text-sm tracking-wide text-slate-100">RecMaster <span class="text-indigo-400 font-normal">Studio Pro</span></h1>
+            <h1 class="font-bold text-lg tracking-wide text-slate-100">RecMaster <span class="text-red-500 font-normal">Lite</span></h1>
         </div>
         <div class="flex items-center gap-4">
-            <div id="mode-display" class="text-xs px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-400">Bekleniyor</div>
+            <div id="status-badge" class="text-xs px-3 py-1 rounded-full bg-slate-800 border border-slate-700 text-slate-400 font-medium">Hazır</div>
         </div>
     </header>
 
     <!-- Main Workspace -->
-    <main class="flex-1 flex overflow-hidden relative">
+    <main class="flex-1 flex overflow-hidden relative items-center justify-center p-4">
         
-        <!-- Toast & Overlays -->
-        <div id="toast" class="hidden absolute top-4 right-4 bg-indigo-600 text-white px-4 py-3 rounded shadow-lg z-[60] flex items-center animate-fade-in text-sm font-medium">
+        <!-- Toast Notification -->
+        <div id="toast" class="hidden absolute top-4 right-4 bg-blue-600 text-white px-4 py-3 rounded shadow-lg z-[80] flex items-center animate-fade-in text-sm font-medium">
             <i class="fa-solid fa-circle-info mr-2"></i> <span id="toast-msg">Mesaj</span>
         </div>
         
+        <!-- Countdown Overlay -->
         <div id="countdown-overlay" class="hidden absolute inset-0 bg-slate-950/95 z-[70] flex items-center justify-center">
             <div class="text-9xl font-bold text-white animate-ping" id="countdown-text">3</div>
         </div>
 
-        <div id="render-overlay" class="hidden absolute inset-0 bg-slate-950/95 z-[70] flex flex-col items-center justify-center">
-            <div class="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-            <h2 class="text-xl font-bold text-white mb-1">Video Oluşturuluyor</h2>
-            <p class="text-slate-400 text-sm mb-4">Efektler işleniyor, lütfen bekleyin...</p>
-            <div class="w-64 h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                <div id="render-progress" class="h-full bg-indigo-500 w-0 transition-all duration-100"></div>
+        <!-- Crop/Area Selection Overlay (New) -->
+        <div id="crop-overlay" class="hidden absolute inset-0 bg-slate-950 z-[60] flex flex-col">
+            <div class="h-12 bg-slate-900 border-b border-slate-800 flex items-center justify-between px-6 shrink-0">
+                <h3 class="font-bold text-white"><i class="fa-solid fa-crop mr-2 text-red-500"></i> Alanı Seçin</h3>
+                <div class="text-xs text-slate-400">Beyaz kutuyu sürükleyerek kayıt alanını belirleyin.</div>
+                <button id="confirm-crop-btn" class="bg-red-600 hover:bg-red-500 text-white px-4 py-1.5 rounded text-sm font-medium">
+                    Kaydı Başlat <i class="fa-solid fa-arrow-right ml-1"></i>
+                </button>
             </div>
-            <p id="render-status" class="text-xs text-slate-500 mt-2">0%</p>
+            <div class="flex-1 relative bg-black overflow-hidden flex items-center justify-center p-4">
+                <div id="crop-container" class="relative shadow-2xl border border-slate-800">
+                    <!-- Source Video Preview (Under crop box) -->
+                    <video id="crop-source-video" autoplay muted class="block max-w-full max-h-[80vh]"></video>
+                    
+                    <!-- Draggable Crop Box -->
+                    <div id="crop-box" class="absolute border-2 border-red-500 z-10" style="top: 10%; left: 10%; width: 200px; height: 200px;">
+                        <div class="resize-handle handle-nw" data-dir="nw"></div>
+                        <div class="resize-handle handle-ne" data-dir="ne"></div>
+                        <div class="resize-handle handle-sw" data-dir="sw"></div>
+                        <div class="resize-handle handle-se" data-dir="se"></div>
+                        
+                        <!-- Size Label -->
+                        <div class="absolute -top-7 left-0 bg-red-600 text-white text-[10px] px-2 py-0.5 rounded font-mono">
+                            <span id="crop-size-label">0x0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
 
-        <!-- VIEW 1: Recorder Setup (Center Stage) -->
-        <div id="setup-panel" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-950 z-40">
-            <div class="w-full max-w-2xl bg-slate-900/50 backdrop-blur-sm rounded-2xl p-8 border border-slate-800/60 shadow-2xl text-center relative overflow-hidden group">
-                <div class="absolute inset-0 bg-gradient-to-tr from-indigo-500/5 via-transparent to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
-                
-                <h2 class="text-2xl font-bold text-white mb-2 relative">Yeni Proje Oluştur</h2>
-                <p class="text-slate-400 text-sm mb-8 relative">Ekran kaydı alarak düzenlemeye başlayın.</p>
+        <!-- VIEW 1: Setup Panel -->
+        <div id="setup-panel" class="w-full max-w-lg bg-slate-900 rounded-2xl p-8 border border-slate-800 shadow-2xl relative overflow-hidden">
+            <div class="absolute -top-24 -right-24 w-48 h-48 bg-red-500/10 rounded-full blur-3xl"></div>
+            <div class="absolute -bottom-24 -left-24 w-48 h-48 bg-orange-500/10 rounded-full blur-3xl"></div>
+            
+            <h2 class="text-2xl font-bold text-white mb-2 relative z-10 text-center">Kayıt Ayarları</h2>
+            <p class="text-slate-400 text-sm mb-6 relative z-10 text-center">Kayda başlamadan önce tercihlerinizi belirleyin.</p>
 
-                <div class="grid grid-cols-2 gap-4 mb-8 relative">
-                    <label class="cursor-pointer bg-slate-800 hover:bg-slate-750 hover:border-indigo-500/30 border border-slate-700 rounded-xl p-4 flex flex-col items-center justify-center gap-3 transition-all group/item">
-                        <div class="w-10 h-10 rounded-full bg-slate-700 group-hover/item:bg-indigo-500/20 flex items-center justify-center transition-colors">
-                            <i class="fa-solid fa-microphone text-indigo-400"></i>
-                        </div>
+            <div class="space-y-4 relative z-10">
+                <!-- Toggle Group -->
+                <div class="grid grid-cols-2 gap-4">
+                    <label class="cursor-pointer bg-slate-800 hover:bg-slate-750 border border-slate-700 rounded-xl p-4 flex flex-col items-center justify-center gap-2 transition-all hover:border-red-500/30">
+                        <i class="fa-solid fa-microphone text-2xl text-slate-400 mb-1" id="icon-mic"></i>
                         <span class="text-sm font-medium">Mikrofon</span>
-                        <input type="checkbox" id="mic-toggle" class="accent-indigo-500">
+                        <input type="checkbox" id="mic-toggle" class="accent-red-500 mt-1">
                     </label>
 
-                    <label class="cursor-pointer bg-slate-800 hover:bg-slate-750 hover:border-purple-500/30 border border-slate-700 rounded-xl p-4 flex flex-col items-center justify-center gap-3 transition-all group/item">
-                        <div class="w-10 h-10 rounded-full bg-slate-700 group-hover/item:bg-purple-500/20 flex items-center justify-center transition-colors">
-                            <i class="fa-solid fa-camera text-purple-400"></i>
-                        </div>
+                    <label class="cursor-pointer bg-slate-800 hover:bg-slate-750 border border-slate-700 rounded-xl p-4 flex flex-col items-center justify-center gap-2 transition-all hover:border-red-500/30">
+                        <i class="fa-solid fa-camera text-2xl text-slate-400 mb-1" id="icon-cam"></i>
                         <span class="text-sm font-medium">Yüz Kamerası</span>
-                        <input type="checkbox" id="cam-toggle" class="accent-purple-500">
+                        <input type="checkbox" id="cam-toggle" class="accent-red-500 mt-1">
                     </label>
                 </div>
 
-                <button id="start-btn" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-3 rounded-lg shadow-lg shadow-indigo-900/20 flex items-center justify-center gap-2 transition-transform active:scale-[0.98] relative">
-                    <i class="fa-solid fa-circle text-[10px] animate-pulse"></i> Kaydı Başlat
+                <!-- Format Select -->
+                <div class="bg-slate-800 border border-slate-700 rounded-xl p-4">
+                    <label class="block text-xs text-slate-400 uppercase font-bold mb-2">Kayıt Alanı & Format</label>
+                    <div class="grid grid-cols-2 gap-2 mb-2">
+                        <button type="button" class="format-btn active bg-red-600 text-white border-red-500" data-format="fullscreen">
+                            <i class="fa-solid fa-expand mb-1 block text-lg"></i> Tam Ekran
+                        </button>
+                        <button type="button" class="format-btn bg-slate-950 border-slate-700 text-slate-400 hover:text-white" data-format="shorts">
+                            <i class="fa-solid fa-mobile-screen mb-1 block text-lg"></i> Shorts/Reels (9:16)
+                        </button>
+                        <button type="button" class="format-btn bg-slate-950 border-slate-700 text-slate-400 hover:text-white" data-format="square">
+                            <i class="fa-regular fa-square mb-1 block text-lg"></i> Kare (1:1)
+                        </button>
+                        <button type="button" class="format-btn bg-slate-950 border-slate-700 text-slate-400 hover:text-white" data-format="custom">
+                            <i class="fa-solid fa-crop-simple mb-1 block text-lg"></i> Serbest Seçim
+                        </button>
+                    </div>
+                    <p class="text-[10px] text-slate-500 mt-2 italic">* 'Tam Ekran' haricindeki seçeneklerde kayıt öncesi alan seçimi yapacaksınız.</p>
+                </div>
+
+                <button id="init-btn" class="w-full bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-500 hover:to-orange-500 text-white font-bold py-4 rounded-xl shadow-lg shadow-red-900/20 transform transition-all active:scale-[0.98] mt-2 flex items-center justify-center gap-2">
+                    <div class="w-3 h-3 bg-white rounded-full animate-pulse"></div>
+                    Kaydı Başlat
                 </button>
             </div>
         </div>
@@ -145,730 +167,499 @@
         <!-- Recording Status Bar (Floating) -->
         <div id="recording-status" class="hidden absolute top-6 left-1/2 transform -translate-x-1/2 bg-slate-900/90 backdrop-blur border border-slate-700 pr-2 pl-6 py-2 rounded-full flex items-center gap-6 shadow-2xl z-[80]">
             <div class="flex items-center gap-3">
-                <div class="w-2.5 h-2.5 bg-red-500 rounded-full recording-pulse"></div>
-                <span class="font-mono text-lg w-20 tracking-wider" id="timer">00:00</span>
+                <div class="w-3 h-3 bg-red-500 rounded-full recording-pulse"></div>
+                <span class="font-mono text-xl w-24 tracking-wider" id="timer">00:00</span>
             </div>
             <div class="h-6 w-px bg-slate-700"></div>
-            <button id="stop-btn-top" class="bg-red-500 hover:bg-red-600 text-white w-8 h-8 rounded-full flex items-center justify-center shadow-lg transition-colors">
-                <i class="fa-solid fa-stop text-xs"></i>
-            </button>
+            <div class="flex gap-2">
+                <button id="pause-btn" class="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-yellow-500 flex items-center justify-center transition-colors" title="Duraklat">
+                    <i class="fa-solid fa-pause text-xs"></i>
+                </button>
+                <button id="stop-btn-top" class="w-8 h-8 rounded-full bg-red-600 hover:bg-red-500 text-white flex items-center justify-center shadow-lg transition-colors" title="Bitir">
+                    <i class="fa-solid fa-stop text-xs"></i>
+                </button>
+            </div>
         </div>
 
-        <!-- VIEW 2: Editor Interface (Hidden by default) -->
-        <div id="editor-ui" class="hidden absolute inset-0 flex flex-col z-30 bg-slate-950">
+        <!-- VIEW 2: Result & Download Panel -->
+        <div id="result-panel" class="hidden w-full h-full flex flex-col items-center justify-center gap-6 animate-fade-in z-30 bg-slate-950 p-6">
             
-            <!-- Top Section: Tools, Preview, Properties -->
-            <div class="flex-1 flex overflow-hidden border-b border-slate-800">
-                
-                <!-- Left Sidebar: Tools -->
-                <div class="w-14 bg-slate-900 border-r border-slate-800 flex flex-col items-center py-4 gap-4 shrink-0">
-                    <button class="w-9 h-9 rounded hover:bg-slate-800 text-slate-400 hover:text-indigo-400 flex items-center justify-center transition-colors tooltip-trigger" title="Seçim Aracı">
-                        <i class="fa-solid fa-arrow-pointer"></i>
-                    </button>
-                    <button id="add-text-btn" class="w-9 h-9 rounded hover:bg-slate-800 text-slate-400 hover:text-indigo-400 flex items-center justify-center transition-colors tooltip-trigger" title="Yazı Ekle">
-                        <i class="fa-solid fa-t"></i>
-                    </button>
-                    <button id="snapshot-btn" class="w-9 h-9 rounded hover:bg-slate-800 text-slate-400 hover:text-indigo-400 flex items-center justify-center transition-colors tooltip-trigger" title="Anlık Görüntü">
-                        <i class="fa-solid fa-camera"></i>
-                    </button>
-                    <div class="w-6 h-px bg-slate-800 my-1"></div>
-                    <button id="split-layer-btn" class="w-9 h-9 rounded hover:bg-slate-800 text-slate-400 hover:text-red-400 flex items-center justify-center transition-colors tooltip-trigger" title="Katmanı Böl (Split)">
-                        <i class="fa-solid fa-scissors"></i>
-                    </button>
-                </div>
-
-                <!-- Center: Viewport -->
-                <div class="flex-1 bg-black/50 flex flex-col relative overflow-hidden">
-                    <div class="flex-1 flex items-center justify-center p-8 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCI+PGNpcmNsZSBjeD0iMSIgY3k9IjEiIHI9IjEiIGZpbGw9IiMzMzMiLz48L3N2Zz4=')]">
-                        <canvas id="editor-canvas" class="max-w-full max-h-full shadow-2xl ring-1 ring-slate-800"></canvas>
-                    </div>
-                    
-                    <!-- Transport Controls -->
-                    <div class="h-12 bg-slate-900 border-t border-slate-800 flex items-center justify-center gap-6">
-                        <span id="editor-time-current" class="font-mono text-xs text-slate-400 w-16 text-right">00:00:00</span>
-                        
-                        <div class="flex items-center gap-2">
-                             <button id="btn-seek-start" class="text-slate-400 hover:text-white p-2"><i class="fa-solid fa-backward-step"></i></button>
-                            <button id="editor-play-btn" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-white text-slate-900 flex items-center justify-center transition-transform hover:scale-105">
-                                <i class="fa-solid fa-play text-xs ml-0.5"></i>
-                            </button>
-                            <button id="btn-seek-end" class="text-slate-400 hover:text-white p-2"><i class="fa-solid fa-forward-step"></i></button>
-                        </div>
-                        
-                        <span id="editor-time-total" class="font-mono text-xs text-slate-500 w-16 text-left">00:00:00</span>
-                    </div>
-                </div>
-
-                <!-- Right Sidebar: Properties -->
-                <div class="w-64 bg-slate-900 border-l border-slate-800 flex flex-col shrink-0">
-                    <div class="h-10 border-b border-slate-800 flex items-center px-4 font-bold text-xs uppercase tracking-wider text-slate-500">
-                        Özellikler
-                    </div>
-                    
-                    <!-- Layer Properties (Conditional) -->
-                    <div id="layer-props" class="p-4 space-y-4 hidden">
-                        <div>
-                            <label class="text-xs text-slate-400 block mb-1.5">Metin İçeriği</label>
-                            <textarea id="prop-text" rows="2" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-sm text-white focus:border-indigo-500 focus:outline-none resize-none"></textarea>
-                        </div>
-                        <div class="grid grid-cols-2 gap-3">
-                            <div>
-                                <label class="text-xs text-slate-400 block mb-1.5">Renk</label>
-                                <div class="flex items-center gap-2 bg-slate-950 border border-slate-700 rounded-lg p-1">
-                                    <input type="color" id="prop-color" class="w-6 h-6 rounded cursor-pointer bg-transparent border-none p-0">
-                                    <span class="text-xs text-slate-500 font-mono">HEX</span>
-                                </div>
-                            </div>
-                            <div>
-                                <label class="text-xs text-slate-400 block mb-1.5">Boyut</label>
-                                <input type="number" id="prop-size" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-1.5 text-sm text-white focus:border-indigo-500 outline-none">
-                            </div>
-                        </div>
-                        <div class="pt-4 border-t border-slate-800">
-                            <button id="delete-layer-btn" class="w-full py-2 rounded border border-red-500/20 text-red-400 hover:bg-red-500/10 text-xs transition-colors">
-                                <i class="fa-solid fa-trash mr-2"></i> Sil
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <!-- Global Settings (When no layer selected) -->
-                    <div id="global-props" class="p-4 space-y-4">
-                        <div>
-                            <label class="text-xs text-slate-400 block mb-1.5">Video Hızı</label>
-                            <select id="speed-select" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-sm text-white focus:border-indigo-500 outline-none">
-                                <option value="0.5">0.5x (Yavaş)</option>
-                                <option value="1.0" selected>1.0x (Normal)</option>
-                                <option value="1.5">1.5x (Hızlı)</option>
-                                <option value="2.0">2.0x (Çok Hızlı)</option>
-                            </select>
-                        </div>
-                        <div class="bg-slate-800/50 rounded-lg p-3 text-xs text-slate-400 border border-slate-800">
-                            <i class="fa-solid fa-circle-info mr-1 text-indigo-400"></i>
-                            Videoyu kesmek için alttaki zaman çizelgesinde "Giriş" ve "Çıkış" noktalarını ayarlayın.
-                        </div>
-                        <button id="export-btn" class="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-3 rounded-lg shadow-lg flex items-center justify-center gap-2 mt-4 transition-all">
-                            <i class="fa-solid fa-download"></i> Dışa Aktar
-                        </button>
-                        <button id="new-record-btn" class="w-full text-slate-500 hover:text-slate-300 text-xs py-2">
-                            Projeyi Kapat
-                        </button>
-                    </div>
+            <!-- Video Preview Container -->
+            <div class="w-full max-w-4xl bg-black rounded-xl overflow-hidden shadow-2xl border border-slate-800 relative group" style="max-height: 70vh;">
+                <video id="preview-video" class="w-full h-full object-contain" controls></video>
+                <div class="absolute top-4 left-4 bg-black/60 px-3 py-1 rounded text-xs backdrop-blur-sm text-white border border-white/10 pointer-events-none">
+                    Önizleme
                 </div>
             </div>
 
-            <!-- Bottom: Timeline -->
-            <div class="h-64 bg-slate-900 border-t border-slate-800 flex flex-col shrink-0">
-                
-                <!-- Toolbar for Timeline -->
-                <div class="h-10 border-b border-slate-800 flex items-center justify-between px-2 bg-slate-850">
-                    <div class="flex items-center gap-1">
-                        <button id="set-in-btn" class="h-7 px-3 rounded hover:bg-slate-700 text-xs font-medium text-slate-300 border border-transparent hover:border-slate-600">
-                            <i class="fa-solid fa-bracket-left mr-1 text-indigo-400"></i> Giriş (In)
-                        </button>
-                        <button id="set-out-btn" class="h-7 px-3 rounded hover:bg-slate-700 text-xs font-medium text-slate-300 border border-transparent hover:border-slate-600">
-                            Çıkış (Out) <i class="fa-solid fa-bracket-right ml-1 text-indigo-400"></i>
-                        </button>
-                        <div class="w-px h-4 bg-slate-700 mx-2"></div>
-                        <button id="reset-trim-btn" class="h-7 px-2 rounded hover:bg-slate-700 text-xs text-slate-400" title="Kesimi Sıfırla">
-                            <i class="fa-solid fa-rotate-left"></i>
-                        </button>
-                    </div>
-                    <div class="text-[10px] text-slate-500 uppercase tracking-widest font-bold mr-2">Timeline</div>
+            <!-- Download Options -->
+            <div class="w-full max-w-4xl flex flex-col md:flex-row items-center justify-between gap-4 bg-slate-900 p-4 rounded-xl border border-slate-800">
+                <div class="text-sm text-slate-400">
+                    <span class="block text-white font-bold mb-1">Kayıt Tamamlandı!</span>
+                    Format seçerek videonuzu indirin.
                 </div>
-
-                <!-- Timeline Tracks Area -->
-                <div class="flex-1 overflow-y-auto overflow-x-hidden relative custom-scrollbar bg-slate-950" id="timeline-container">
-                    
-                    <!-- Time Ruler -->
-                    <div class="h-6 w-full sticky top-0 z-20 bg-slate-900 border-b border-slate-800 relative">
-                        <div class="absolute inset-0 timeline-ruler opacity-20"></div>
-                        <div class="absolute inset-0 timeline-sub-ruler opacity-10"></div>
-                        
-                        <!-- Range Scrubber Input (Invisible but interactive) -->
-                        <input type="range" id="timeline-scrubber" min="0" max="100" value="0" step="0.01" class="absolute inset-0 w-full h-full opacity-0 cursor-ew-resize z-30">
-                        
-                        <!-- Playhead (Visual) -->
-                        <div id="playhead" class="absolute top-0 bottom-0 w-px bg-red-500 h-[1000px] pointer-events-none z-10 translate-x-0 transition-transform duration-75 ease-linear flex flex-col items-center">
-                            <div class="w-3 h-3 -mt-1.5 bg-red-500 rotate-45 transform shadow-sm"></div>
-                        </div>
-
-                         <!-- Trim Indicators (Visual Overlay on top of tracks) -->
-                        <div id="trim-overlay-left" class="absolute top-6 bottom-0 left-0 bg-black/60 border-r border-indigo-500/50 z-20 pointer-events-none w-0 backdrop-grayscale"></div>
-                        <div id="trim-overlay-right" class="absolute top-6 bottom-0 right-0 bg-black/60 border-l border-indigo-500/50 z-20 pointer-events-none w-0 backdrop-grayscale"></div>
-                    </div>
-
-                    <!-- Tracks Content -->
-                    <div class="p-2 space-y-1 relative min-h-[200px]">
-                        
-                        <!-- Video Track -->
-                        <div class="h-10 bg-slate-900 rounded border border-slate-800 flex overflow-hidden relative group">
-                            <div class="w-24 shrink-0 bg-slate-850 border-r border-slate-800 flex items-center px-3 text-xs font-medium text-indigo-400 select-none z-10">
-                                <i class="fa-solid fa-video mr-2 opacity-50"></i> V1
-                            </div>
-                            <div class="flex-1 relative overflow-hidden bg-slate-900">
-                                <!-- Thumbnails placeholder pattern -->
-                                <div class="absolute inset-0 flex opacity-20">
-                                    <div class="flex-1 border-r border-slate-700/50 bg-[linear-gradient(45deg,transparent_45%,#fff_50%,transparent_55%)] bg-[length:10px_10px]"></div>
-                                    <div class="flex-1 border-r border-slate-700/50"></div>
-                                    <div class="flex-1 border-r border-slate-700/50"></div>
-                                    <div class="flex-1 border-r border-slate-700/50"></div>
-                                    <div class="flex-1 border-r border-slate-700/50"></div>
-                                </div>
-                                <div class="absolute inset-0 flex items-center justify-center text-[10px] text-slate-600 font-mono tracking-widest uppercase">
-                                    Ana Kayıt (Video)
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Audio Track -->
-                        <div class="h-8 bg-slate-900 rounded border border-slate-800 flex overflow-hidden relative opacity-80">
-                            <div class="w-24 shrink-0 bg-slate-850 border-r border-slate-800 flex items-center px-3 text-xs font-medium text-emerald-400 select-none z-10">
-                                <i class="fa-solid fa-volume-high mr-2 opacity-50"></i> A1
-                            </div>
-                            <div class="flex-1 relative overflow-hidden bg-emerald-900/10">
-                                <div class="absolute inset-0 opacity-30 flex items-center">
-                                    <div class="w-full h-4 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0IiBoZWlnaHQ9IjEwIj48cmVjdCB3aWR0aD0iMiIgaGVpZ2h0PSI2IiB4PSIxIiB5PSIyIiBmaWxsPSIjMzRkMzk5IiAvPjwvc3ZnPg==')]"></div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Dynamic Text Tracks Area -->
-                        <div id="text-tracks-container" class="space-y-1 pt-1"></div>
-                    </div>
+                
+                <div class="flex items-center gap-3 w-full md:w-auto">
+                    <button id="download-mp4" class="flex-1 md:flex-none bg-blue-600 hover:bg-blue-500 text-white px-6 py-3 rounded-lg font-medium flex items-center justify-center gap-2 transition-transform hover:-translate-y-0.5">
+                        <i class="fa-brands fa-windows"></i> MP4 İndir
+                    </button>
+                    <button id="download-webm" class="flex-1 md:flex-none bg-slate-700 hover:bg-slate-600 text-white px-6 py-3 rounded-lg font-medium flex items-center justify-center gap-2 transition-transform hover:-translate-y-0.5">
+                        <i class="fa-brands fa-chrome"></i> WebM İndir
+                    </button>
+                    <div class="w-px h-8 bg-slate-700 mx-2 hidden md:block"></div>
+                    <button id="new-record-btn" class="bg-transparent hover:bg-slate-800 text-slate-400 hover:text-white px-4 py-3 rounded-lg transition-colors" title="Yeni Kayıt">
+                        <i class="fa-solid fa-trash-can text-lg"></i>
+                    </button>
                 </div>
             </div>
         </div>
 
     </main>
 
-    <!-- Hidden Video Elements -->
+    <!-- Hidden Video Elements for Composition -->
     <video id="src-video-screen" autoplay muted class="hidden"></video>
     <video id="src-video-cam" autoplay muted class="hidden"></video>
-    <video id="editor-source-video" class="hidden" playsinline></video>
     <canvas id="compositor-canvas" class="hidden"></canvas>
 
     <script>
         /**
-         * RecMaster Studio Pro Logic
+         * RecMaster Lite Logic
          */
         
-        // --- State ---
-        let state = {
-            mode: 'setup', // setup, recording, editing
-            isRecording: false,
-            isPlaying: false,
-            duration: 0,
-            currentTime: 0,
-            trimStart: 0,
-            trimEnd: 0,
-            playbackSpeed: 1.0,
-            selectedLayerId: null
-        };
-
+        // --- Variables ---
         let mediaRecorder;
         let recordedChunks = [];
-        let streams = { display: null, user: null };
-        let textLayers = []; // { id, text, x, y, size, color, startPct, endPct }
+        let recordedBlobUrl = null;
         let timerInt;
-        let animFrame;
+        let totalSeconds = 0;
+        let isPaused = false;
+        let selectedFormat = 'fullscreen'; // fullscreen, shorts, square, custom
+        
+        // Cropping State
+        let cropState = {
+            sx: 0, sy: 0, sw: 0, sh: 0, // Source coordinates
+            scaleFactor: 1
+        };
+        
+        let streams = {
+            display: null,
+            user: null
+        };
 
         // --- Elements ---
         const els = {
-            startBtn: document.getElementById('start-btn'),
-            stopBtn: document.getElementById('stop-btn-top'),
             setupPanel: document.getElementById('setup-panel'),
+            resultPanel: document.getElementById('result-panel'),
             recordingStatus: document.getElementById('recording-status'),
-            editorUi: document.getElementById('editor-ui'),
-            video: document.getElementById('editor-source-video'),
-            canvas: document.getElementById('editor-canvas'),
-            ctx: document.getElementById('editor-canvas').getContext('2d'),
-            scrubber: document.getElementById('timeline-scrubber'),
-            playhead: document.getElementById('playhead'),
-            timeCurrent: document.getElementById('editor-time-current'),
-            timeTotal: document.getElementById('editor-time-total'),
+            countdownOverlay: document.getElementById('countdown-overlay'),
+            countdownText: document.getElementById('countdown-text'),
+            cropOverlay: document.getElementById('crop-overlay'),
+            cropSourceVideo: document.getElementById('crop-source-video'),
+            cropBox: document.getElementById('crop-box'),
+            cropSizeLabel: document.getElementById('crop-size-label'),
+            cropContainer: document.getElementById('crop-container'),
+            
+            initBtn: document.getElementById('init-btn'),
+            confirmCropBtn: document.getElementById('confirm-crop-btn'),
+            stopBtn: document.getElementById('stop-btn-top'),
+            pauseBtn: document.getElementById('pause-btn'),
             timer: document.getElementById('timer'),
-            countdown: document.getElementById('countdown-overlay'),
-            renderOverlay: document.getElementById('render-overlay'),
-            toast: document.getElementById('toast'),
-            trimLeft: document.getElementById('trim-overlay-left'),
-            trimRight: document.getElementById('trim-overlay-right'),
-            textTracks: document.getElementById('text-tracks-container'),
-            layerProps: document.getElementById('layer-props'),
-            globalProps: document.getElementById('global-props'),
-            btnPlay: document.getElementById('editor-play-btn'),
-            btnSeekStart: document.getElementById('btn-seek-start'),
-            btnSeekEnd: document.getElementById('btn-seek-end')
+            statusBadge: document.getElementById('status-badge'),
+            previewVideo: document.getElementById('preview-video'),
+            micToggle: document.getElementById('mic-toggle'),
+            camToggle: document.getElementById('cam-toggle'),
+            iconMic: document.getElementById('icon-mic'),
+            iconCam: document.getElementById('icon-cam')
         };
 
-        // --- Utils ---
-        const fmtTime = s => {
-            const m = Math.floor(s / 60).toString().padStart(2, '0');
-            const sec = Math.floor(s % 60).toString().padStart(2, '0');
-            const ms = Math.floor((s % 1) * 100).toString().padStart(2, '0');
-            return `${m}:${sec}:${ms}`;
-        };
+        // --- UI Interactions ---
+        els.micToggle.addEventListener('change', (e) => {
+            els.iconMic.className = e.target.checked ? "fa-solid fa-microphone text-2xl text-white mb-1" : "fa-solid fa-microphone text-2xl text-slate-400 mb-1";
+        });
+        els.camToggle.addEventListener('change', (e) => {
+            els.iconCam.className = e.target.checked ? "fa-solid fa-camera text-2xl text-white mb-1" : "fa-solid fa-camera text-2xl text-slate-400 mb-1";
+        });
 
-        const toast = (msg) => {
-            document.getElementById('toast-msg').innerText = msg;
-            els.toast.classList.remove('hidden');
-            setTimeout(() => els.toast.classList.add('hidden'), 3000);
-        };
+        // Format Selection Buttons
+        document.querySelectorAll('.format-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.format-btn').forEach(b => {
+                    b.classList.remove('active', 'bg-red-600', 'text-white', 'border-red-500');
+                    b.classList.add('bg-slate-950', 'text-slate-400', 'border-slate-700');
+                });
+                btn.classList.remove('bg-slate-950', 'text-slate-400', 'border-slate-700');
+                btn.classList.add('active', 'bg-red-600', 'text-white', 'border-red-500');
+                // Button styling class needs 'border'
+                btn.classList.add('border');
+                
+                selectedFormat = btn.dataset.format;
+            });
+        });
 
-        // --- Recording Phase ---
-        els.startBtn.onclick = async () => {
-            const mic = document.getElementById('mic-toggle').checked;
-            const cam = document.getElementById('cam-toggle').checked;
+        // Add base styles for format buttons
+        const style = document.createElement('style');
+        style.innerHTML = `
+            .format-btn {
+                padding: 10px;
+                border-radius: 8px;
+                font-size: 0.75rem;
+                font-weight: 600;
+                transition: all 0.2s;
+                border-width: 1px;
+            }
+        `;
+        document.head.appendChild(style);
+
+
+        // --- STEP 1: Initialize Stream ---
+        els.initBtn.onclick = async () => {
+            const useMic = els.micToggle.checked;
+            const useCam = els.camToggle.checked;
 
             try {
-                streams.display = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 60 }, audio: true });
-                
-                if (mic || cam) {
+                // 1. Get Screen Stream (Always get full quality first)
+                streams.display = await navigator.mediaDevices.getDisplayMedia({ 
+                    video: { frameRate: 60, width: { ideal: 1920 }, height: { ideal: 1080 } }, 
+                    audio: true 
+                });
+
+                // 2. Get User Stream
+                if (useMic || useCam) {
                     try {
                         streams.user = await navigator.mediaDevices.getUserMedia({ 
-                            audio: mic, 
-                            video: cam ? { width: 320, height: 240 } : false 
+                            audio: useMic, 
+                            video: useCam ? { width: 320, height: 240 } : false 
                         });
-                    } catch(e) { toast('Kamera/Mikrofon izni alınamadı.'); }
+                    } catch (err) {
+                        alert("Kamera/Mikrofon izni alınamadı.");
+                    }
                 }
 
-                // Countdown
                 els.setupPanel.classList.add('hidden');
-                els.countdown.classList.remove('hidden');
-                let c = 3;
-                let cInt = setInterval(() => {
-                    c--;
-                    document.getElementById('countdown-text').innerText = c;
-                    if(c<=0) {
-                        clearInterval(cInt);
-                        els.countdown.classList.add('hidden');
-                        startRecording(cam);
-                    }
-                }, 1000);
 
-            } catch (e) { console.error(e); }
+                // 3. Check Format
+                if (selectedFormat === 'fullscreen') {
+                    // Direct Start
+                    startCountdown();
+                } else {
+                    // Open Crop UI
+                    setupCropUI();
+                }
+
+            } catch (err) {
+                console.warn("Cancelled:", err);
+                els.setupPanel.classList.remove('hidden');
+            }
         };
 
-        async function startRecording(useCam) {
-            state.isRecording = true;
-            document.getElementById('mode-display').innerText = "KAYITTA";
-            document.getElementById('mode-display').className = "text-xs px-2 py-0.5 rounded bg-red-900/30 border border-red-800 text-red-400 animate-pulse";
+        // --- Crop UI Logic ---
+        function setupCropUI() {
+            els.cropOverlay.classList.remove('hidden');
+            els.cropSourceVideo.srcObject = streams.display;
+            
+            // Wait for video to load metadata to size everything
+            els.cropSourceVideo.onloadedmetadata = () => {
+                // Determine layout
+                const vidW = els.cropSourceVideo.videoWidth;
+                const vidH = els.cropSourceVideo.videoHeight;
+                
+                // Set initial crop box size based on format
+                let boxW = 300;
+                let boxH = 300;
+                
+                if (selectedFormat === 'shorts') {
+                    // 9:16
+                    boxH = vidH * 0.8; // 80% of screen height
+                    boxW = boxH * (9/16);
+                } else if (selectedFormat === 'square') {
+                    boxH = vidH * 0.6;
+                    boxW = boxH;
+                } else {
+                    // Custom
+                    boxW = vidW * 0.5;
+                    boxH = vidH * 0.5;
+                }
+                
+                // Position center
+                // Note: The displayed video size might differ from intrinsic size.
+                // We need to calculate scale factor.
+                // However, accessing offsetWidth immediately might be racey.
+                // Let's setup update loop or basic positioning.
+                
+                // Reset box style
+                els.cropBox.style.width = `${boxW}px`; // This assumes 1:1 scale for now, will fix in logic
+                els.cropBox.style.height = `${boxH}px`;
+                els.cropBox.style.left = `50px`;
+                els.cropBox.style.top = `50px`;
+                
+                updateCropLabels();
+            };
+        }
+
+        // Draggable Crop Box Logic
+        let isDraggingBox = false;
+        let isResizing = false;
+        let resizeDir = '';
+        let startX, startY, startLeft, startTop, startW, startH;
+
+        els.cropContainer.addEventListener('mousedown', (e) => {
+            if (e.target.classList.contains('resize-handle')) {
+                // Resize
+                if (selectedFormat !== 'custom') return; // Only custom allows resize for simplicity, or we can allow scaling
+                
+                isResizing = true;
+                resizeDir = e.target.dataset.dir;
+                startX = e.clientX;
+                startY = e.clientY;
+                startW = els.cropBox.offsetWidth;
+                startH = els.cropBox.offsetHeight;
+                startLeft = els.cropBox.offsetLeft;
+                startTop = els.cropBox.offsetTop;
+                e.preventDefault();
+            } else if (e.target.id === 'crop-box' || els.cropBox.contains(e.target)) {
+                // Drag
+                isDraggingBox = true;
+                startX = e.clientX;
+                startY = e.clientY;
+                startLeft = els.cropBox.offsetLeft;
+                startTop = els.cropBox.offsetTop;
+                e.preventDefault();
+            }
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            // Get boundaries of container
+            const containerRect = els.cropContainer.getBoundingClientRect();
+            
+            if (isDraggingBox) {
+                let dx = e.clientX - startX;
+                let dy = e.clientY - startY;
+                
+                let newLeft = startLeft + dx;
+                let newTop = startTop + dy;
+                
+                // Constrain
+                const maxLeft = containerRect.width - els.cropBox.offsetWidth;
+                const maxTop = containerRect.height - els.cropBox.offsetHeight;
+                
+                newLeft = Math.max(0, Math.min(newLeft, maxLeft));
+                newTop = Math.max(0, Math.min(newTop, maxTop));
+                
+                els.cropBox.style.left = `${newLeft}px`;
+                els.cropBox.style.top = `${newTop}px`;
+                
+                updateCropLabels();
+            } else if (isResizing) {
+                let dx = e.clientX - startX;
+                let dy = e.clientY - startY;
+                
+                // Simplified resize logic
+                if (resizeDir.includes('e')) els.cropBox.style.width = `${startW + dx}px`;
+                if (resizeDir.includes('s')) els.cropBox.style.height = `${startH + dy}px`;
+                
+                // Basic Aspect Ratio Lock for Shorts/Square could go here
+                // For now, custom lets you go wild. 
+                // For Presets, we disable resize handles via CSS pointer-events maybe?
+                
+                updateCropLabels();
+            }
+        });
+
+        window.addEventListener('mouseup', () => {
+            isDraggingBox = false;
+            isResizing = false;
+        });
+
+        function updateCropLabels() {
+            // Displayed size vs Intrinsic size
+            const vidDispW = els.cropSourceVideo.offsetWidth;
+            const vidIntW = els.cropSourceVideo.videoWidth;
+            const scale = vidIntW / vidDispW;
+            
+            // Save for recording
+            cropState.scaleFactor = scale;
+            cropState.sx = els.cropBox.offsetLeft * scale;
+            cropState.sy = els.cropBox.offsetTop * scale;
+            cropState.sw = els.cropBox.offsetWidth * scale;
+            cropState.sh = els.cropBox.offsetHeight * scale;
+            
+            els.cropSizeLabel.innerText = `${Math.round(cropState.sw)}x${Math.round(cropState.sh)}`;
+        }
+
+        // --- STEP 2: Confirm Crop & Start ---
+        els.confirmCropBtn.onclick = () => {
+            // Validate crop area
+            if (cropState.sw <= 0 || cropState.sh <= 0) {
+                // Fallback if not updated
+                updateCropLabels();
+            }
+            els.cropOverlay.classList.add('hidden');
+            startCountdown();
+        };
+
+        function startCountdown() {
+            els.countdownOverlay.classList.remove('hidden');
+            let count = 3;
+            els.countdownText.innerText = count;
+            const cInt = setInterval(() => {
+                count--;
+                if(count>0) els.countdownText.innerText = count;
+                else {
+                    clearInterval(cInt);
+                    els.countdownOverlay.classList.add('hidden');
+                    startRecording();
+                }
+            }, 1000);
+        }
+
+        // --- STEP 3: Recording Logic ---
+        async function startRecording() {
+            // UI
+            els.statusBadge.innerText = "KAYITTA";
+            els.statusBadge.className = "text-xs px-3 py-1 rounded-full bg-red-900/50 border border-red-500 text-red-400 font-bold animate-pulse";
             els.recordingStatus.classList.remove('hidden');
 
-            const compCanvas = document.getElementById('compositor-canvas');
-            const compCtx = compCanvas.getContext('2d');
+            const canvas = document.getElementById('compositor-canvas');
+            const ctx = canvas.getContext('2d');
             const vScreen = document.getElementById('src-video-screen');
             const vCam = document.getElementById('src-video-cam');
 
             vScreen.srcObject = streams.display;
             await vScreen.play();
-            compCanvas.width = vScreen.videoWidth;
-            compCanvas.height = vScreen.videoHeight;
 
-            // Audio Mixing
+            // Set Canvas Size
+            if (selectedFormat === 'fullscreen') {
+                canvas.width = vScreen.videoWidth;
+                canvas.height = vScreen.videoHeight;
+                cropState.sx = 0; cropState.sy = 0;
+                cropState.sw = vScreen.videoWidth;
+                cropState.sh = vScreen.videoHeight;
+            } else {
+                // Use crop dimensions
+                canvas.width = cropState.sw;
+                canvas.height = cropState.sh;
+            }
+
+            // Audio Setup
             const ac = new AudioContext();
             const dest = ac.createMediaStreamDestination();
             if(streams.display.getAudioTracks().length) ac.createMediaStreamSource(streams.display).connect(dest);
             if(streams.user && streams.user.getAudioTracks().length) {
                 const ms = ac.createMediaStreamSource(streams.user);
-                ms.connect(ac.createGain()).connect(dest);
+                const g = ac.createGain(); g.gain.value = 1.5;
+                ms.connect(g).connect(dest);
             }
 
             // Draw Loop
-            if(useCam && streams.user && streams.user.getVideoTracks().length) {
+            const useCam = els.camToggle.checked;
+            if (useCam && streams.user && streams.user.getVideoTracks().length) {
                 vCam.srcObject = streams.user;
                 await vCam.play();
-                function draw() {
-                    if(!state.isRecording) return;
-                    compCtx.drawImage(vScreen, 0, 0);
-                    // PIP
-                    const s = compCanvas.height * 0.25;
-                    const m = 40;
-                    const x = compCanvas.width - s - m;
-                    const y = compCanvas.height - s - m;
-                    compCtx.save();
-                    compCtx.beginPath();
-                    compCtx.arc(x+s/2, y+s/2, s/2, 0, Math.PI*2);
-                    compCtx.clip();
-                    compCtx.drawImage(vCam, x, y, s, s);
-                    compCtx.lineWidth = 6; compCtx.strokeStyle = "#fff"; compCtx.stroke();
-                    compCtx.restore();
-                    requestAnimationFrame(draw);
-                }
-                draw();
-            } else {
-                // Simple pass through if no cam, but using canvas for consistency
-                 function drawSimple() {
-                    if(!state.isRecording) return;
-                    compCtx.drawImage(vScreen, 0, 0);
-                    requestAnimationFrame(drawSimple);
-                }
-                drawSimple();
             }
 
-            const stream = compCanvas.captureStream(60);
-            if(dest.stream.getAudioTracks().length) stream.addTrack(dest.stream.getAudioTracks()[0]);
+            let isDrawing = true;
+            function draw() {
+                if(!isDrawing) return;
+                
+                // Draw Cropped Screen Area
+                // drawImage(img, sx, sy, sw, sh, dx, dy, dw, dh)
+                ctx.drawImage(vScreen, 
+                    cropState.sx, cropState.sy, cropState.sw, cropState.sh, 
+                    0, 0, canvas.width, canvas.height
+                );
 
-            mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp9' });
+                // Draw Facecam (If active)
+                if (useCam && streams.user) {
+                    const size = canvas.height * 0.2; // Smaller relative to crop
+                    const m = 20;
+                    const x = canvas.width - size - m;
+                    const y = canvas.height - size - m;
+                    
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.arc(x+size/2, y+size/2, size/2, 0, Math.PI*2);
+                    ctx.clip();
+                    ctx.drawImage(vCam, x, y, size, size);
+                    ctx.strokeStyle = "#fff"; ctx.lineWidth = 3; ctx.stroke();
+                    ctx.restore();
+                }
+
+                requestAnimationFrame(draw);
+            }
+            draw();
+
+            // Stream & Record
+            const finalStream = canvas.captureStream(60);
+            if(dest.stream.getAudioTracks().length) finalStream.addTrack(dest.stream.getAudioTracks()[0]);
+
+            let mime = 'video/mp4';
+            if(!MediaRecorder.isTypeSupported(mime)) mime = 'video/webm;codecs=vp9';
+
+            mediaRecorder = new MediaRecorder(finalStream, { mimeType: mime });
             recordedChunks = [];
             mediaRecorder.ondataavailable = e => { if(e.data.size>0) recordedChunks.push(e.data); };
-            mediaRecorder.onstop = stopRecording;
+            mediaRecorder.onstop = () => {
+                isDrawing = false;
+                ac.close();
+                streams.display.getTracks().forEach(t=>t.stop());
+                if(streams.user) streams.user.getTracks().forEach(t=>t.stop());
+                finalize();
+            };
             
             // Native stop
             streams.display.getVideoTracks()[0].onended = () => mediaRecorder.stop();
 
             mediaRecorder.start();
             
-            let secs = 0;
+            // Timer
+            totalSeconds = 0;
+            clearInterval(timerInt);
             timerInt = setInterval(() => {
-                secs++;
-                const m = Math.floor(secs/60).toString().padStart(2,'0');
-                const s = (secs%60).toString().padStart(2,'0');
-                els.timer.innerText = `${m}:${s}`;
+                if(!isPaused) {
+                    totalSeconds++;
+                    const m = Math.floor(totalSeconds/60).toString().padStart(2,'0');
+                    const s = (totalSeconds%60).toString().padStart(2,'0');
+                    els.timer.innerText = `${m}:${s}`;
+                }
             }, 1000);
         }
 
-        els.stopBtn.onclick = () => mediaRecorder.stop();
-
-        function stopRecording() {
-            state.isRecording = false;
-            clearInterval(timerInt);
-            streams.display.getTracks().forEach(t=>t.stop());
-            if(streams.user) streams.user.getTracks().forEach(t=>t.stop());
-            
-            els.recordingStatus.classList.add('hidden');
-            initEditor();
-        }
-
-        // --- Editing Phase ---
-        function initEditor() {
-            els.editorUi.classList.remove('hidden');
-            document.getElementById('mode-display').innerText = "DÜZENLEME";
-            document.getElementById('mode-display').className = "text-xs px-2 py-0.5 rounded bg-indigo-900/30 border border-indigo-800 text-indigo-400";
-
-            const blob = new Blob(recordedChunks, { type: 'video/webm' });
-            const url = URL.createObjectURL(blob);
-            els.video.src = url;
-            
-            els.video.onloadedmetadata = () => {
-                state.duration = els.video.duration;
-                state.trimEnd = state.duration;
-                els.timeTotal.innerText = fmtTime(state.duration);
-                els.canvas.width = els.video.videoWidth;
-                els.canvas.height = els.video.videoHeight;
-                renderFrame();
-            };
-        }
-
-        // --- Timeline Logic ---
-        els.scrubber.addEventListener('input', (e) => {
-            const pct = parseFloat(e.target.value);
-            const t = (pct / 100) * state.duration;
-            els.video.currentTime = t;
-            state.currentTime = t;
-            updateUI();
-            if(!state.isPlaying) renderFrame();
-        });
-
-        // Split Logic
-        document.getElementById('split-layer-btn').onclick = () => {
-            if(!state.selectedLayerId) {
-                toast("Lütfen önce bir yazı katmanı seçin.");
-                return;
-            }
-            // Find layer
-            const layerIndex = textLayers.findIndex(l => l.id === state.selectedLayerId);
-            if(layerIndex === -1) return;
-
-            const layer = textLayers[layerIndex];
-            const currentPct = (state.currentTime / state.duration) * 100;
-
-            // Check boundaries
-            if(currentPct <= layer.startPct || currentPct >= layer.endPct) {
-                toast("Oynatma çubuğu katmanın üzerinde değil.");
-                return;
-            }
-
-            // Clone and adjust
-            const newLayer = { ...layer, id: Date.now(), startPct: currentPct };
-            layer.endPct = currentPct; // Cut first one
-            
-            textLayers.push(newLayer);
-            renderTimelineTracks();
-            toast("Katman bölündü.");
-            renderFrame();
-        };
-
-        function updateUI() {
-            // Update Scrubber Position
-            const pct = (state.currentTime / state.duration) * 100;
-            els.scrubber.value = pct;
-            els.playhead.style.left = `${pct}%`;
-            els.timeCurrent.innerText = fmtTime(state.currentTime);
-
-            // Loop trim
-            if(state.isPlaying && state.currentTime >= state.trimEnd) {
-                els.video.currentTime = state.trimStart;
-            }
-        }
-
-        // --- Editor Render Loop ---
-        function renderFrame() {
-            // Draw Video
-            els.ctx.drawImage(els.video, 0, 0, els.canvas.width, els.canvas.height);
-
-            // Draw Layers
-            const pct = (state.currentTime / state.duration) * 100;
-            
-            textLayers.forEach(l => {
-                if(pct >= l.startPct && pct <= l.endPct) {
-                    els.ctx.save();
-                    els.ctx.font = `bold ${l.size}px Arial`;
-                    els.ctx.fillStyle = l.color;
-                    els.ctx.textAlign = "center";
-                    els.ctx.textBaseline = "middle";
-                    
-                    // Selection Box
-                    if(l.id === state.selectedLayerId) {
-                        const m = els.ctx.measureText(l.text);
-                        const w = m.width + 20;
-                        const h = l.size + 20;
-                        els.ctx.strokeStyle = "#60a5fa";
-                        els.ctx.lineWidth = 4;
-                        els.ctx.setLineDash([6, 4]);
-                        els.ctx.strokeRect(l.x - w/2, l.y - h/2, w, h);
-                        
-                        // Handles (Visual only)
-                        els.ctx.fillStyle = "#60a5fa";
-                        els.ctx.fillRect(l.x - w/2 - 5, l.y - h/2 - 5, 10, 10);
-                        els.ctx.fillRect(l.x + w/2 - 5, l.y + h/2 - 5, 10, 10);
-                        // Revert fill
-                        els.ctx.fillStyle = l.color;
-                    }
-
-                    els.ctx.shadowColor = "rgba(0,0,0,0.5)";
-                    els.ctx.shadowBlur = 4;
-                    els.ctx.fillText(l.text, l.x, l.y);
-                    els.ctx.restore();
-                }
-            });
-
-            if(state.isPlaying) requestAnimationFrame(renderFrame);
-        }
-
         // --- Controls ---
-        els.btnPlay.onclick = () => {
-            if(state.isPlaying) {
-                els.video.pause();
-                state.isPlaying = false;
-                els.btnPlay.innerHTML = '<i class="fa-solid fa-play text-xs ml-0.5"></i>';
+        els.stopBtn.onclick = () => mediaRecorder.stop();
+        els.pauseBtn.onclick = () => {
+            if(mediaRecorder.state === "recording") {
+                mediaRecorder.pause(); isPaused = true;
+                els.pauseBtn.innerHTML = '<i class="fa-solid fa-play text-xs"></i>';
+                els.pauseBtn.classList.add('text-green-500');
             } else {
-                if(state.currentTime >= state.trimEnd) els.video.currentTime = state.trimStart;
-                els.video.playbackRate = state.playbackSpeed;
-                els.video.play();
-                state.isPlaying = true;
-                els.btnPlay.innerHTML = '<i class="fa-solid fa-pause text-xs"></i>';
-                renderFrame();
+                mediaRecorder.resume(); isPaused = false;
+                els.pauseBtn.innerHTML = '<i class="fa-solid fa-pause text-xs"></i>';
+                els.pauseBtn.classList.remove('text-green-500');
             }
         };
 
-        els.video.addEventListener('timeupdate', () => {
-            state.currentTime = els.video.currentTime;
-            updateUI();
-        });
-
-        // Trim
-        document.getElementById('set-in-btn').onclick = () => {
-            state.trimStart = state.currentTime;
-            updateTrimUI();
-        };
-        document.getElementById('set-out-btn').onclick = () => {
-            state.trimEnd = state.currentTime;
-            updateTrimUI();
-        };
-        document.getElementById('reset-trim-btn').onclick = () => {
-            state.trimStart = 0;
-            state.trimEnd = state.duration;
-            updateTrimUI();
-        };
-
-        function updateTrimUI() {
-            const l = (state.trimStart / state.duration) * 100;
-            const r = ((state.duration - state.trimEnd) / state.duration) * 100;
-            els.trimLeft.style.width = `${l}%`;
-            els.trimRight.style.width = `${r}%`;
+        function finalize() {
+            clearInterval(timerInt);
+            els.recordingStatus.classList.add('hidden');
+            els.resultPanel.classList.remove('hidden');
+            els.statusBadge.innerText = "TAMAMLANDI";
+            els.statusBadge.className = "text-xs px-3 py-1 rounded-full bg-green-900/50 border border-green-500 text-green-400 font-bold";
+            
+            const blob = new Blob(recordedChunks, { type: mediaRecorder.mimeType });
+            recordedBlobUrl = URL.createObjectURL(blob);
+            els.previewVideo.src = recordedBlobUrl;
         }
 
-        // --- Layers Logic ---
-        document.getElementById('add-text-btn').onclick = () => {
-            const id = Date.now();
-            textLayers.push({
-                id: id,
-                text: 'Yeni Metin',
-                x: els.canvas.width / 2,
-                y: els.canvas.height / 2,
-                size: 60,
-                color: '#ffffff',
-                startPct: 0,
-                endPct: 100
-            });
-            selectLayer(id);
-            renderTimelineTracks();
-            renderFrame();
-        };
-
-        function selectLayer(id) {
-            state.selectedLayerId = id;
-            if(id) {
-                const l = textLayers.find(x => x.id === id);
-                els.layerProps.classList.remove('hidden');
-                els.globalProps.classList.add('hidden');
-                document.getElementById('prop-text').value = l.text;
-                document.getElementById('prop-color').value = l.color;
-                document.getElementById('prop-size').value = l.size;
-            } else {
-                els.layerProps.classList.add('hidden');
-                els.globalProps.classList.remove('hidden');
-            }
-            renderTimelineTracks(); // Update selection highlight
-            renderFrame();
-        }
-
-        function renderTimelineTracks() {
-            els.textTracks.innerHTML = '';
-            textLayers.forEach(l => {
-                const div = document.createElement('div');
-                div.className = `h-6 rounded text-[10px] flex items-center px-2 cursor-pointer relative overflow-hidden layer-block ${l.id === state.selectedLayerId ? 'bg-indigo-600 text-white selected' : 'bg-slate-800 text-slate-300 border border-slate-700'}`;
-                
-                // Position logic based on pct
-                div.style.marginLeft = `${l.startPct}%`;
-                div.style.width = `${l.endPct - l.startPct}%`;
-                div.innerText = l.text;
-                
-                div.onclick = (e) => {
-                    e.stopPropagation();
-                    selectLayer(l.id);
-                };
-
-                els.textTracks.appendChild(div);
-            });
-        }
-
-        // Layer Properties Inputs
-        document.getElementById('prop-text').oninput = (e) => {
-            const l = textLayers.find(x => x.id === state.selectedLayerId);
-            if(l) { l.text = e.target.value; renderFrame(); renderTimelineTracks(); }
-        };
-        document.getElementById('prop-color').oninput = (e) => {
-            const l = textLayers.find(x => x.id === state.selectedLayerId);
-            if(l) { l.color = e.target.value; renderFrame(); }
-        };
-        document.getElementById('prop-size').oninput = (e) => {
-            const l = textLayers.find(x => x.id === state.selectedLayerId);
-            if(l) { l.size = parseInt(e.target.value); renderFrame(); }
-        };
-        document.getElementById('delete-layer-btn').onclick = () => {
-            textLayers = textLayers.filter(x => x.id !== state.selectedLayerId);
-            selectLayer(null);
-        };
-
-        // Canvas Interaction (Drag)
-        let isDragging = false;
-        els.canvas.addEventListener('mousedown', (e) => {
-            const rect = els.canvas.getBoundingClientRect();
-            const x = (e.clientX - rect.left) * (els.canvas.width / rect.width);
-            const y = (e.clientY - rect.top) * (els.canvas.height / rect.height);
-            
-            // Hit test
-            for(let i=textLayers.length-1; i>=0; i--) {
-                const l = textLayers[i];
-                // Simple box hit test
-                const d = Math.sqrt((x-l.x)**2 + (y-l.y)**2);
-                if(d < l.size) { // Approx hit
-                    selectLayer(l.id);
-                    isDragging = true;
-                    return;
-                }
-            }
-            selectLayer(null);
-        });
-
-        els.canvas.addEventListener('mousemove', (e) => {
-            if(isDragging && state.selectedLayerId) {
-                const rect = els.canvas.getBoundingClientRect();
-                const x = (e.clientX - rect.left) * (els.canvas.width / rect.width);
-                const y = (e.clientY - rect.top) * (els.canvas.height / rect.height);
-                const l = textLayers.find(x => x.id === state.selectedLayerId);
-                l.x = x; l.y = y;
-                renderFrame();
-            }
-        });
-
-        els.canvas.addEventListener('mouseup', () => isDragging = false);
-
-        // --- Export ---
-        document.getElementById('export-btn').onclick = async () => {
-            if(state.isPlaying) els.btnPlay.click();
-            
-            els.renderOverlay.classList.remove('hidden');
-            
-            // Setup recorder
-            const stream = els.canvas.captureStream(60);
-            
-            // Audio from video element (needs workaround to capture while seeking)
-            const ac = new AudioContext();
-            const source = ac.createMediaElementSource(els.video);
-            const dest = ac.createMediaStreamDestination();
-            source.connect(dest);
-            source.connect(ac.destination); // Mute locally?
-            
-            if(dest.stream.getAudioTracks().length) stream.addTrack(dest.stream.getAudioTracks()[0]);
-
-            const rec = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp9' });
-            const chunks = [];
-            rec.ondataavailable = e => { if(e.data.size>0) chunks.push(e.data); };
-            
-            rec.onstop = () => {
-                const b = new Blob(chunks, { type: 'video/webm' });
-                const u = URL.createObjectURL(b);
-                const a = document.createElement('a');
-                a.href = u;
-                a.download = `RecMaster_Pro_Export.webm`;
-                a.click();
-                els.renderOverlay.classList.add('hidden');
-                toast("İndirme başladı.");
-            };
-
-            rec.start();
-
-            // Playback for render
-            els.video.currentTime = state.trimStart;
-            await els.video.play();
-            
-            const renderLoop = () => {
-                renderFrame();
-                const p = ((els.video.currentTime - state.trimStart) / (state.trimEnd - state.trimStart)) * 100;
-                document.getElementById('render-progress').style.width = `${p}%`;
-                document.getElementById('render-status').innerText = Math.round(p) + '%';
-                
-                if(els.video.currentTime < state.trimEnd && !els.video.ended) {
-                    requestAnimationFrame(renderLoop);
-                } else {
-                    rec.stop();
-                    els.video.pause();
-                }
-            };
-            renderLoop();
-        };
-
-        // Snapshot
-        document.getElementById('snapshot-btn').onclick = () => {
+        function downloadVideo(ext) {
+            if(!recordedBlobUrl) return;
             const a = document.createElement('a');
-            a.download = 'snapshot.png';
-            a.href = els.canvas.toDataURL();
-            a.click();
-            toast("Anlık görüntü alındı");
-        };
-
+            a.href = recordedBlobUrl;
+            a.download = `RecMaster_${selectedFormat}_${Date.now()}.${ext}`;
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        }
+        
+        document.getElementById('download-mp4').onclick = () => downloadVideo('mp4');
+        document.getElementById('download-webm').onclick = () => downloadVideo('webm');
         document.getElementById('new-record-btn').onclick = () => location.reload();
 
     </script>
