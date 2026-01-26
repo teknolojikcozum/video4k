@@ -110,6 +110,30 @@
             color: white;
             box-shadow: 0 1px 3px rgba(0,0,0,0.2);
         }
+
+        /* Audio Visualizer Bar */
+        .audio-meter {
+            width: 4px;
+            background-color: #334155;
+            border-radius: 2px;
+            transition: height 0.05s ease;
+            height: 4px;
+        }
+        .audio-meter.active {
+            background-color: #4ade80;
+            box-shadow: 0 0 4px #4ade80;
+        }
+
+        /* Cam Position Grid */
+        .cam-pos-btn {
+            background-color: #334155;
+            border-radius: 2px;
+            width: 100%;
+            height: 100%;
+            border: 1px solid transparent;
+        }
+        .cam-pos-btn:hover { background-color: #475569; }
+        .cam-pos-btn.active { background-color: #f8fafc; border-color: #94a3b8; }
     </style>
 </head>
 <body class="bg-slate-950 text-slate-200 font-sans h-screen flex flex-col overflow-hidden select-none bg-[url('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=2564&auto=format&fit=crop')] bg-cover bg-center">
@@ -160,12 +184,37 @@
                     </div>
                 </div>
 
-                <div class="flex items-center gap-6">
-                     <div class="text-xs text-right">
-                        <div class="text-slate-500 uppercase tracking-widest text-[10px] font-bold mb-0.5">Çözünürlük</div>
-                        <span id="crop-size-info" class="font-mono text-white">1920x1080</span>
+                <!-- Dynamic Controls (Cam/Mic Status) -->
+                <div class="flex items-center gap-4">
+                    <!-- Audio Visualizer (Visible only if Mic is active) -->
+                    <div id="audio-preview" class="hidden items-center gap-2 border-r border-white/10 pr-4">
+                        <i class="fa-solid fa-microphone-lines text-slate-500 text-xs"></i>
+                        <div class="flex items-end gap-0.5 h-6">
+                            <div class="audio-meter h-2"></div>
+                            <div class="audio-meter h-3"></div>
+                            <div class="audio-meter h-5"></div>
+                            <div class="audio-meter h-3"></div>
+                            <div class="audio-meter h-2"></div>
+                        </div>
                     </div>
-                    <div class="h-8 w-px bg-white/10"></div>
+
+                    <!-- Camera Position Controls (Visible only if Cam is active) -->
+                    <div id="cam-controls" class="hidden items-center gap-3 border-r border-white/10 pr-4">
+                        <div class="flex flex-col items-end">
+                            <span class="text-[10px] uppercase text-slate-500 font-bold leading-none">Konum</span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-1 w-8 h-8 bg-slate-800 rounded p-0.5" title="Kamera Konumu">
+                            <button class="cam-pos-btn" data-pos="top-left"></button>
+                            <button class="cam-pos-btn" data-pos="top-right"></button>
+                            <button class="cam-pos-btn" data-pos="bottom-left"></button>
+                            <button class="cam-pos-btn active" data-pos="bottom-right"></button> <!-- Default Active -->
+                        </div>
+                        <button id="cam-shape-btn" class="w-8 h-8 rounded bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center text-xs border border-white/5 transition-colors" title="Şekil Değiştir (Yuvarlak/Kare)">
+                            <i class="fa-solid fa-circle"></i>
+                        </button>
+                    </div>
+
+                    <div class="h-8 w-px bg-white/10 hidden md:block"></div>
                     <button id="start-recording-btn" class="bg-red-600 hover:bg-red-500 text-white px-6 py-2.5 rounded-lg text-sm font-bold shadow-lg shadow-red-900/20 flex items-center gap-2 transition-all hover:scale-105 active:scale-95">
                         <span class="relative flex h-3 w-3 mr-1">
                           <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
@@ -314,6 +363,11 @@
         let isPaused = false;
         let isCropMode = false;
         
+        // Cam & Audio State
+        let camPosition = 'bottom-right'; // top-left, top-right, bottom-left, bottom-right
+        let camShape = 'circle'; // circle, square
+        let audioContext, analyser, dataArray, animationId;
+        
         let cropState = { sx: 0, sy: 0, sw: 0, sh: 0 };
         let streams = { display: null, user: null };
 
@@ -339,7 +393,14 @@
             micToggle: document.getElementById('mic-toggle'),
             camToggle: document.getElementById('cam-toggle'),
             iconMic: document.getElementById('icon-mic'),
-            iconCam: document.getElementById('icon-cam')
+            iconCam: document.getElementById('icon-cam'),
+            
+            // New Controls
+            audioPreview: document.getElementById('audio-preview'),
+            camControls: document.getElementById('cam-controls'),
+            audioMeters: document.querySelectorAll('.audio-meter'),
+            camPosBtns: document.querySelectorAll('.cam-pos-btn'),
+            camShapeBtn: document.getElementById('cam-shape-btn')
         };
 
         // UI Toggles
@@ -350,7 +411,7 @@
             els.iconCam.className = e.target.checked ? "fa-solid fa-video text-xl text-rose-400 transition-colors" : "fa-solid fa-video text-xl text-slate-400 transition-colors";
         });
 
-        // Mode Switching (Fullscreen vs Custom Crop)
+        // Mode Switching
         document.querySelectorAll('.segment-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 document.querySelectorAll('.segment-btn').forEach(b => b.classList.remove('active'));
@@ -364,13 +425,32 @@
                     updateCropLabels();
                 } else {
                     els.cropBox.classList.add('hidden');
-                    // Reset to full
                     const vidW = els.cropSourceVideo.videoWidth;
                     const vidH = els.cropSourceVideo.videoHeight;
                     cropState = { sx: 0, sy: 0, sw: vidW, sh: vidH };
                     els.cropSizeInfo.innerText = `${vidW}x${vidH}`;
                 }
             });
+        });
+
+        // Cam Position Controls
+        els.camPosBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                els.camPosBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                camPosition = btn.dataset.pos;
+            });
+        });
+
+        // Cam Shape Control
+        els.camShapeBtn.addEventListener('click', () => {
+            if (camShape === 'circle') {
+                camShape = 'square';
+                els.camShapeBtn.innerHTML = '<i class="fa-solid fa-square"></i>';
+            } else {
+                camShape = 'circle';
+                els.camShapeBtn.innerHTML = '<i class="fa-solid fa-circle"></i>';
+            }
         });
 
         // --- STEP 1: Init Stream ---
@@ -393,6 +473,18 @@
                     } catch (err) { alert("Medya izni alınamadı."); }
                 }
 
+                // Show UI elements based on selection
+                if (useMic && streams.user && streams.user.getAudioTracks().length > 0) {
+                    els.audioPreview.classList.remove('hidden');
+                    els.audioPreview.classList.add('flex');
+                    initAudioVisualizer(streams.user);
+                }
+                
+                if (useCam && streams.user && streams.user.getVideoTracks().length > 0) {
+                    els.camControls.classList.remove('hidden');
+                    els.camControls.classList.add('flex');
+                }
+
                 els.setupPanel.classList.add('hidden');
                 setupCropUI();
 
@@ -402,13 +494,40 @@
             }
         };
 
+        // Audio Visualizer Logic
+        function initAudioVisualizer(stream) {
+            audioContext = new AudioContext();
+            const source = audioContext.createMediaStreamSource(stream);
+            analyser = audioContext.createAnalyser();
+            analyser.fftSize = 32;
+            source.connect(analyser);
+            dataArray = new Uint8Array(analyser.frequencyBinCount);
+            
+            updateVisualizer();
+        }
+
+        function updateVisualizer() {
+            if (!analyser) return;
+            analyser.getByteFrequencyData(dataArray);
+            
+            // Simple visualizer mapping (5 bars)
+            for(let i = 0; i < 5; i++) {
+                const val = dataArray[i * 2]; // Skip some bins
+                const h = Math.max(4, (val / 255) * 20); // Scale height
+                els.audioMeters[i].style.height = `${h}px`;
+                
+                if (val > 100) els.audioMeters[i].classList.add('active');
+                else els.audioMeters[i].classList.remove('active');
+            }
+            animationId = requestAnimationFrame(updateVisualizer);
+        }
+
         // --- Preview Logic ---
         function setupCropUI() {
             els.cropOverlay.classList.remove('hidden');
             els.cropSourceVideo.srcObject = streams.display;
             
             els.cropSourceVideo.onloadedmetadata = () => {
-                // Default Crop Box Size (50%)
                 const vidW = els.cropSourceVideo.videoWidth;
                 const vidH = els.cropSourceVideo.videoHeight;
                 const contW = els.cropSourceVideo.offsetWidth;
@@ -422,7 +541,6 @@
                 els.cropBox.style.left = `${(contW - boxW)/2}px`;
                 els.cropBox.style.top = `${((vidH * scale) - boxH)/2}px`;
                 
-                // Initialize state as fullscreen first
                 cropState = { sx: 0, sy: 0, sw: vidW, sh: vidH };
                 els.cropSizeInfo.innerText = `${vidW}x${vidH}`;
             };
@@ -529,9 +647,11 @@
             canvas.height = cropState.sh;
 
             // Audio Mixing
-            const ac = new AudioContext();
-            const dest = ac.createMediaStreamDestination();
+            const dest = audioContext ? audioContext.createMediaStreamDestination() : new AudioContext().createMediaStreamDestination();
+            const ac = audioContext || new AudioContext(); // Reuse or new
+            
             if(streams.display.getAudioTracks().length) ac.createMediaStreamSource(streams.display).connect(dest);
+            
             if(streams.user && streams.user.getAudioTracks().length) {
                 const ms = ac.createMediaStreamSource(streams.user);
                 ms.connect(ac.createGain()).connect(dest);
@@ -547,20 +667,33 @@
             function draw() {
                 if(!isDrawing) return;
                 
-                // Draw Crop Area Only
+                // Draw Crop Area
                 ctx.drawImage(vScreen, 
                     cropState.sx, cropState.sy, cropState.sw, cropState.sh, 
                     0, 0, canvas.width, canvas.height
                 );
 
                 if (useCam && streams.user) {
-                    const size = canvas.height * 0.25; 
+                    const size = Math.min(canvas.width, canvas.height) * 0.25; 
                     const m = 30;
-                    const x = canvas.width - size - m;
-                    const y = canvas.height - size - m;
+                    let x, y;
+
+                    // Calculate Cam Position
+                    if (camPosition === 'top-left') { x = m; y = m; }
+                    else if (camPosition === 'top-right') { x = canvas.width - size - m; y = m; }
+                    else if (camPosition === 'bottom-left') { x = m; y = canvas.height - size - m; }
+                    else { x = canvas.width - size - m; y = canvas.height - size - m; } // bottom-right
+
                     ctx.save();
                     ctx.beginPath();
-                    ctx.arc(x+size/2, y+size/2, size/2, 0, Math.PI*2);
+                    
+                    if (camShape === 'circle') {
+                        ctx.arc(x+size/2, y+size/2, size/2, 0, Math.PI*2);
+                    } else {
+                        // Round rect for square shape
+                        ctx.roundRect(x, y, size, size, 20); 
+                    }
+                    
                     ctx.clip();
                     ctx.drawImage(vCam, x, y, size, size);
                     ctx.strokeStyle = "white"; ctx.lineWidth = 4; ctx.stroke();
@@ -581,7 +714,9 @@
             mediaRecorder.ondataavailable = e => { if(e.data.size>0) recordedChunks.push(e.data); };
             mediaRecorder.onstop = () => {
                 isDrawing = false;
-                ac.close();
+                if (audioContext) audioContext.close();
+                if (animationId) cancelAnimationFrame(animationId);
+                
                 streams.display.getTracks().forEach(t=>t.stop());
                 if(streams.user) streams.user.getTracks().forEach(t=>t.stop());
                 finalize();
