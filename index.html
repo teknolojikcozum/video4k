@@ -205,9 +205,6 @@
         <div class="flex items-center gap-4">
             <div id="keyboard-hint" class="hidden md:flex gap-2 text-[10px] text-slate-500 font-mono items-center">
                 <div class="flex items-center gap-1 bg-white/5 px-2 py-1 rounded border border-white/5">
-                    <kbd class="font-sans">F8</kbd> Gizle/Göster
-                </div>
-                <div class="flex items-center gap-1 bg-white/5 px-2 py-1 rounded border border-white/5">
                     <kbd class="font-sans">F9</kbd> Duraklat
                 </div>
                 <div class="flex items-center gap-1 bg-white/5 px-2 py-1 rounded border border-white/5">
@@ -420,9 +417,6 @@
             <button id="stop-btn-top" class="w-10 h-10 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center shadow-lg transition-colors tooltip-trigger active:scale-95" title="Bitir (F10)">
                 <i class="fa-solid fa-stop text-sm"></i>
             </button>
-            <button id="hide-ui-btn" class="w-10 h-10 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-colors border border-white/5 ml-2 tooltip-trigger active:scale-95" title="Gizle (F8)">
-                <i class="fa-solid fa-eye-slash text-xs"></i>
-            </button>
         </div>
     </div>
 
@@ -471,7 +465,6 @@
             startRecordingBtn: document.getElementById('start-recording-btn'),
             stopBtn: document.getElementById('stop-btn-top'),
             pauseBtn: document.getElementById('pause-btn'),
-            hideUiBtn: document.getElementById('hide-ui-btn'),
             timer: document.getElementById('timer'),
             statusBadge: document.getElementById('status-badge'),
             previewVideo: document.getElementById('preview-video'),
@@ -512,12 +505,6 @@
             } else {
                 document.title = "RecMaster: Modern Ekran Kaydedici";
             }
-        }
-
-        function toggleUI() {
-            els.recordingStatus.classList.toggle('ui-hidden');
-            const isHidden = els.recordingStatus.classList.contains('ui-hidden');
-            showToast(isHidden ? "Araç çubuğu gizlendi (F8)" : "Araç çubuğu gösterildi");
         }
 
         // --- UI Interactions ---
@@ -917,15 +904,11 @@
 
         els.stopBtn.onclick = stopRecording;
         els.pauseBtn.onclick = togglePause;
-        els.hideUiBtn.onclick = toggleUI; // F8 Action
 
         // Keyboard Shortcuts
         document.addEventListener('keydown', (e) => {
             if (!isRecording) return;
-            if (e.key === 'F8') {
-                e.preventDefault();
-                toggleUI();
-            } else if (e.key === 'F9') {
+            if (e.key === 'F9') {
                 e.preventDefault();
                 togglePause();
             } else if (e.key === 'F10') {
