@@ -31,21 +31,24 @@
             background-position: 0 0, 10px 10px;
             background-size: 20px 20px;
         }
+        /* Custom Range Slider Styling */
         input[type=range]::-webkit-slider-thumb {
             -webkit-appearance: none;
-            height: 20px;
-            width: 5px;
-            background: #ef4444;
-            margin-top: -8px;
-            cursor: pointer;
-            border-radius: 2px;
+            height: 24px;
+            width: 4px;
+            background: #ffffff;
+            margin-top: -10px;
+            cursor: ew-resize;
+            border-radius: 0px;
+            box-shadow: 0 0 5px rgba(0,0,0,0.5);
+            position: relative;
+            z-index: 50;
         }
         input[type=range]::-webkit-slider-runnable-track {
             width: 100%;
             height: 4px;
             cursor: pointer;
-            background: #4b5563;
-            border-radius: 2px;
+            background: transparent; /* Track handled manually */
         }
         .layer-item.active {
             border-left: 4px solid #3b82f6;
@@ -76,9 +79,9 @@
     <main class="flex-1 flex flex-col relative overflow-hidden">
         
         <!-- Toast Notification -->
-        <div id="toast" class="hidden absolute top-4 right-4 bg-yellow-600 text-white px-4 py-3 rounded shadow-lg z-50 flex items-center animate-fade-in">
-            <i class="fa-solid fa-triangle-exclamation mr-2"></i>
-            <span id="toast-msg">Uyarı mesajı</span>
+        <div id="toast" class="hidden absolute top-4 right-4 bg-blue-600 text-white px-4 py-3 rounded shadow-lg z-50 flex items-center animate-fade-in">
+            <i class="fa-solid fa-info-circle mr-2"></i>
+            <span id="toast-msg">Bilgi mesajı</span>
         </div>
 
         <!-- Countdown Overlay -->
@@ -110,7 +113,7 @@
                 <div class="absolute -bottom-20 -left-20 w-64 h-64 bg-red-600/10 rounded-full blur-3xl"></div>
                 
                 <h2 class="text-3xl font-bold mb-2 relative z-10">Stüdyonu Hazırla</h2>
-                <p class="text-slate-400 mb-8 relative z-10">Kayıt yapın, ardından dahili editörde düzenleyin.</p>
+                <p class="text-slate-400 mb-8 relative z-10">Kayıt yapın, ardından dahili editörde kesin ve düzenleyin.</p>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8 relative z-10">
                     <!-- Microphone -->
@@ -155,20 +158,48 @@
         <div id="editor-panel" class="hidden flex-1 flex flex-col h-full animate-fade-in">
             
             <!-- Editor Toolbar -->
-            <div class="bg-slate-900 border-b border-slate-800 p-2 flex justify-between items-center shrink-0">
+            <div class="bg-slate-900 border-b border-slate-800 p-2 flex flex-wrap justify-between items-center shrink-0 gap-2">
                 <div class="flex items-center gap-2">
-                    <button id="add-text-btn" class="bg-slate-800 hover:bg-slate-700 text-white px-3 py-1.5 rounded text-sm flex items-center gap-2 border border-slate-700 transition-colors">
-                        <i class="fa-solid fa-font"></i> Yazı Ekle
+                    <!-- Editing Tools -->
+                    <div class="flex bg-slate-800 rounded border border-slate-700 overflow-hidden">
+                        <button id="set-in-btn" class="px-3 py-1.5 hover:bg-slate-700 text-slate-300 border-r border-slate-700 text-xs" title="Başlangıç Noktası (In)">
+                            <i class="fa-solid fa-bracket-left mr-1"></i> Başlangıç
+                        </button>
+                        <button id="set-out-btn" class="px-3 py-1.5 hover:bg-slate-700 text-slate-300 border-r border-slate-700 text-xs" title="Bitiş Noktası (Out)">
+                             Bitiş <i class="fa-solid fa-bracket-right ml-1"></i>
+                        </button>
+                        <button id="reset-trim-btn" class="px-3 py-1.5 hover:bg-slate-700 text-red-400 text-xs" title="Kesimi Sıfırla">
+                            <i class="fa-solid fa-times"></i>
+                        </button>
+                    </div>
+
+                    <div class="h-6 w-px bg-slate-700 mx-1"></div>
+
+                    <button id="add-text-btn" class="bg-slate-800 hover:bg-slate-700 text-white px-3 py-1.5 rounded text-xs flex items-center gap-2 border border-slate-700 transition-colors">
+                        <i class="fa-solid fa-font"></i> Yazı
                     </button>
-                    <div class="h-6 w-px bg-slate-700 mx-2"></div>
-                    <span class="text-xs text-slate-500">Yazıları taşımak için önizleme üzerinde sürükleyin.</span>
+                    
+                    <div class="relative group">
+                         <select id="speed-select" class="bg-slate-800 hover:bg-slate-700 text-white px-2 py-1.5 rounded text-xs border border-slate-700 appearance-none cursor-pointer pr-6">
+                            <option value="0.5">0.5x</option>
+                            <option value="1" selected>1.0x</option>
+                            <option value="1.5">1.5x</option>
+                            <option value="2">2.0x</option>
+                        </select>
+                        <i class="fa-solid fa-gauge-high absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
+                    </div>
+
+                    <button id="snapshot-btn" class="bg-slate-800 hover:bg-slate-700 text-blue-400 px-3 py-1.5 rounded text-xs flex items-center gap-2 border border-slate-700 transition-colors" title="Ekran Görüntüsü Al">
+                        <i class="fa-solid fa-camera"></i>
+                    </button>
                 </div>
+
                 <div class="flex items-center gap-2">
-                     <button id="new-record-btn" class="text-slate-400 hover:text-white px-3 py-1 text-sm">
-                        <i class="fa-solid fa-trash mr-1"></i> Vazgeç
+                     <button id="new-record-btn" class="text-slate-400 hover:text-white px-3 py-1 text-xs">
+                        <i class="fa-solid fa-trash mr-1"></i> Sil
                     </button>
-                    <button id="export-btn" class="bg-green-600 hover:bg-green-500 text-white px-4 py-1.5 rounded text-sm font-bold flex items-center gap-2 shadow-lg shadow-green-900/20 transition-all">
-                        <i class="fa-solid fa-download"></i> Videoyu Oluştur & İndir
+                    <button id="export-btn" class="bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400 text-white px-4 py-1.5 rounded text-sm font-bold flex items-center gap-2 shadow-lg shadow-green-900/20 transition-all">
+                        <i class="fa-solid fa-download"></i> Videoyu Çıkar
                     </button>
                 </div>
             </div>
@@ -180,7 +211,7 @@
                     
                     <!-- Canvas Controls Overlay -->
                     <div class="absolute bottom-6 left-1/2 transform -translate-x-1/2 bg-slate-900/80 backdrop-blur px-4 py-2 rounded-full flex items-center gap-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button id="editor-play-btn" class="text-white hover:text-blue-400 text-xl w-8 h-8 flex items-center justify-center">
+                        <button id="editor-play-btn" class="text-white hover:text-blue-400 text-xl w-8 h-8 flex items-center justify-center transition-transform hover:scale-110">
                             <i class="fa-solid fa-play"></i>
                         </button>
                         <span id="editor-time" class="font-mono text-sm w-16 text-center">00:00</span>
@@ -188,65 +219,81 @@
                 </div>
 
                 <!-- Right: Properties Panel -->
-                <div class="w-72 bg-slate-900 border-l border-slate-800 flex flex-col shrink-0">
-                    <div class="p-3 border-b border-slate-800 font-bold text-sm text-slate-300">
-                        Katmanlar & Özellikler
+                <div class="w-64 bg-slate-900 border-l border-slate-800 flex flex-col shrink-0">
+                    <div class="p-3 border-b border-slate-800 font-bold text-xs text-slate-300 uppercase tracking-wider">
+                        Katman Ayarları
                     </div>
                     
                     <!-- Selected Layer Properties -->
-                    <div id="layer-props" class="p-4 border-b border-slate-800 hidden">
-                        <label class="block text-xs text-slate-500 mb-1">Metin İçeriği</label>
-                        <input type="text" id="prop-text" class="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 text-sm mb-3 focus:border-blue-500 outline-none">
+                    <div id="layer-props" class="p-4 border-b border-slate-800 hidden bg-slate-800/30">
+                        <label class="block text-xs text-slate-500 mb-1">Metin</label>
+                        <input type="text" id="prop-text" class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-sm mb-3 focus:border-blue-500 outline-none">
                         
                         <div class="flex gap-2 mb-3">
                             <div class="flex-1">
                                 <label class="block text-xs text-slate-500 mb-1">Renk</label>
-                                <input type="color" id="prop-color" class="w-full h-8 bg-transparent cursor-pointer rounded">
+                                <input type="color" id="prop-color" class="w-full h-8 bg-transparent cursor-pointer rounded border border-slate-700">
                             </div>
                             <div class="flex-1">
-                                <label class="block text-xs text-slate-500 mb-1">Boyut</label>
-                                <input type="number" id="prop-size" class="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 text-sm" min="10" max="200">
+                                <label class="block text-xs text-slate-500 mb-1">Boyut (px)</label>
+                                <input type="number" id="prop-size" class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-sm" min="10" max="200">
                             </div>
                         </div>
-                        <button id="delete-layer-btn" class="w-full bg-red-900/30 text-red-400 hover:bg-red-900/50 border border-red-900/50 rounded py-1 text-xs">Katmanı Sil</button>
+                        <button id="delete-layer-btn" class="w-full bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/20 rounded py-1.5 text-xs transition-colors">
+                            <i class="fa-solid fa-trash mr-1"></i> Katmanı Sil
+                        </button>
                     </div>
                     
                     <!-- Layers List -->
                     <div id="layers-list" class="flex-1 overflow-y-auto p-2 space-y-1">
                         <!-- Dynamic content -->
-                        <div class="text-center text-xs text-slate-600 mt-10 italic">Henüz yazı katmanı eklenmedi.</div>
+                        <div class="text-center text-xs text-slate-600 mt-10 italic">Yazı katmanı yok.</div>
                     </div>
                 </div>
             </div>
 
             <!-- Bottom: Timeline -->
-            <div class="h-32 bg-slate-900 border-t border-slate-800 shrink-0 flex flex-col">
-                <!-- Time Scrubber -->
-                <div class="h-6 bg-slate-800 border-b border-slate-700 flex items-center px-4 relative">
-                    <input type="range" id="timeline-scrubber" min="0" max="100" value="0" step="0.1" class="w-full h-full opacity-0 absolute inset-0 z-10 cursor-pointer">
-                    <div id="scrubber-track" class="w-full h-1 bg-slate-600 relative rounded">
+            <div class="h-auto bg-slate-900 border-t border-slate-800 shrink-0 flex flex-col">
+                <!-- Time Scrubber & Trim Visualization -->
+                <div class="h-8 bg-slate-950 border-b border-slate-800 flex items-center px-4 relative group">
+                    <!-- Trim Areas (Visual) -->
+                    <div class="absolute top-0 bottom-0 left-4 right-4 pointer-events-none">
+                        <!-- Left Trimmed Area (Grayed out) -->
+                        <div id="trim-visual-left" class="absolute left-0 top-0 bottom-0 bg-black/70 z-0 w-0 border-r border-red-500/50"></div>
+                        <!-- Active Area (Blue hint) -->
+                        <div id="trim-visual-active" class="absolute left-0 right-0 top-0 bottom-0 bg-blue-500/5 z-0"></div>
+                        <!-- Right Trimmed Area (Grayed out) -->
+                        <div id="trim-visual-right" class="absolute right-0 top-0 bottom-0 bg-black/70 z-0 w-0 border-l border-red-500/50"></div>
+                    </div>
+
+                    <!-- Range Input -->
+                    <input type="range" id="timeline-scrubber" min="0" max="100" value="0" step="0.1" class="w-full h-full opacity-0 absolute inset-0 z-20 cursor-pointer">
+                    
+                    <!-- Custom Scrubber Track -->
+                    <div id="scrubber-track" class="w-full h-1 bg-slate-700 relative rounded pointer-events-none z-10">
                         <div id="scrubber-fill" class="h-full bg-blue-500 w-0 rounded"></div>
-                        <div id="scrubber-thumb" class="w-3 h-3 bg-white rounded-full absolute top-1/2 transform -translate-y-1/2 shadow" style="left: 0%"></div>
+                        <div id="scrubber-thumb" class="w-1 h-4 bg-white absolute top-1/2 transform -translate-y-1/2 shadow-lg -ml-0.5" style="left: 0%"></div>
                     </div>
                 </div>
 
                 <!-- Tracks -->
-                <div class="flex-1 overflow-y-auto p-2 space-y-1 custom-scrollbar">
+                <div class="h-32 overflow-y-auto p-2 space-y-1 custom-scrollbar bg-slate-900">
                     <!-- Video Track -->
-                    <div class="flex items-center h-8 bg-slate-800/50 rounded border border-slate-700 overflow-hidden relative timeline-track group">
+                    <div class="flex items-center h-8 bg-slate-800/50 rounded border border-slate-700 overflow-hidden relative timeline-track">
                         <div class="w-20 bg-slate-800 h-full flex items-center justify-center border-r border-slate-700 text-xs font-bold text-blue-400 z-10">VIDEO</div>
                         <div class="flex-1 h-full relative">
-                            <div class="absolute inset-0 bg-blue-900/30 flex items-center justify-center text-xs text-blue-300/50 tracking-widest">ANA KAYIT</div>
+                            <div class="absolute inset-0 bg-blue-900/20 flex items-center justify-center text-xs text-blue-300/40 tracking-widest">
+                                <i class="fa-solid fa-video mr-2"></i> ANA KAYIT
+                            </div>
                         </div>
                     </div>
 
-                     <!-- Audio Track (Visual Only) -->
+                     <!-- Audio Track -->
                      <div class="flex items-center h-8 bg-slate-800/50 rounded border border-slate-700 overflow-hidden relative timeline-track">
                         <div class="w-20 bg-slate-800 h-full flex items-center justify-center border-r border-slate-700 text-xs font-bold text-green-400 z-10">SES</div>
                         <div class="flex-1 h-full relative">
-                             <div class="absolute inset-0 bg-green-900/30 flex items-center overflow-hidden opacity-50">
-                                <!-- Fake waveform pattern -->
-                                <div class="w-full h-4 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0IiBoZWlnaHQ9IjEwIj48cmVjdCB3aWR0aD0iMiIgaGVpZ2h0PSI2IiB4PSIxIiB5PSIyIiBmaWxsPSIjNGFkZThjIiAvPjwvc3ZnPg==')]"></div>
+                             <div class="absolute inset-0 bg-green-900/20 flex items-center overflow-hidden opacity-50">
+                                <div class="w-full h-4 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0IiBoZWlnaHQ9IjEwIj48cmVjdCB3aWR0aD0iMiIgaGVpZ2h0PSI2IiB4PSIxIiB5PSIyIiBmaWxsPSIjNGFkZThjIiAvPjwvc3ZnPg==')] opacity-50"></div>
                              </div>
                         </div>
                     </div>
@@ -259,11 +306,11 @@
 
         <!-- VIEW 3: Rendering Overlay -->
         <div id="render-overlay" class="hidden absolute inset-0 bg-slate-950/95 z-50 flex flex-col items-center justify-center">
-            <div class="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-6"></div>
+            <div class="w-16 h-16 border-4 border-green-500 border-t-transparent rounded-full animate-spin mb-6"></div>
             <h2 class="text-2xl font-bold mb-2">Video İşleniyor...</h2>
-            <p class="text-slate-400 mb-6">Lütfen bekleyin, düzenlemeleriniz uygulanıyor.</p>
+            <p class="text-slate-400 mb-6">Kırpma ve efektler uygulanıyor. Lütfen bekleyin.</p>
             <div class="w-64 h-2 bg-slate-800 rounded overflow-hidden">
-                <div id="render-progress" class="h-full bg-blue-600 w-0 transition-all duration-100"></div>
+                <div id="render-progress" class="h-full bg-green-500 w-0 transition-all duration-100"></div>
             </div>
             <p id="render-status" class="text-xs text-slate-500 mt-2">0%</p>
         </div>
@@ -294,14 +341,18 @@
         let editorCanvas = document.getElementById('editor-canvas');
         let editorCtx = editorCanvas.getContext('2d');
         let editorVideo = document.getElementById('editor-source-video');
-        let textLayers = []; // { id, text, x, y, color, size, startTime, endTime, isSelected }
+        let textLayers = []; 
         let selectedLayerId = null;
         let isEditorPlaying = false;
         let animationFrameId;
         let videoDuration = 0;
         let isDragging = false;
         let dragTargetId = null;
-        let dragOffsetX, dragOffsetY;
+        
+        // --- TRIM & EDIT VARIABLES ---
+        let trimStartTime = 0;
+        let trimEndTime = 0;
+        let playbackSpeed = 1.0;
 
         // --- DOM ELEMENTS ---
         const startBtn = document.getElementById('start-btn');
@@ -476,24 +527,134 @@
             
             editorVideo.onloadedmetadata = () => {
                 videoDuration = editorVideo.duration;
+                trimEndTime = videoDuration; // Default: Full length
+                
                 // Set canvas size to match video
                 editorCanvas.width = editorVideo.videoWidth;
                 editorCanvas.height = editorVideo.videoHeight;
                 drawEditorFrame();
+                updateTimelineVisuals();
             };
         }
 
-        // --- DRAWING THE EDITOR ---
+        // --- TRIM & PLAYBACK LOGIC ---
+        const playBtn = document.getElementById('editor-play-btn');
+        const scrubber = document.getElementById('timeline-scrubber');
+        
+        playBtn.onclick = togglePlay;
+        
+        // Loop or Stop at Trim End
+        editorVideo.addEventListener('timeupdate', () => {
+            if (isEditorPlaying) {
+                // If we pass the trim end, loop back to start
+                if (editorVideo.currentTime >= trimEndTime) {
+                    editorVideo.currentTime = trimStartTime;
+                    // Optional: Pause instead of loop -> togglePlay();
+                }
+            }
+            // Update UI if playing
+            if(isEditorPlaying) updateTimelineUI();
+        });
+
+        function togglePlay() {
+            if (isEditorPlaying) {
+                editorVideo.pause();
+                isEditorPlaying = false;
+                cancelAnimationFrame(animationFrameId);
+                playBtn.innerHTML = '<i class="fa-solid fa-play"></i>';
+            } else {
+                // If playhead is out of bounds, jump to start
+                if (editorVideo.currentTime < trimStartTime || editorVideo.currentTime >= trimEndTime) {
+                    editorVideo.currentTime = trimStartTime;
+                }
+                editorVideo.playbackRate = playbackSpeed;
+                editorVideo.play();
+                isEditorPlaying = true;
+                drawEditorFrame();
+                playBtn.innerHTML = '<i class="fa-solid fa-pause"></i>';
+            }
+        }
+
+        // Scrubber Logic
+        scrubber.addEventListener('input', (e) => {
+            const pct = e.target.value;
+            const time = (pct / 100) * videoDuration;
+            editorVideo.currentTime = time;
+            if(!isEditorPlaying) {
+                drawEditorFrame();
+                updateTimelineUI();
+            }
+        });
+
+        // Trim Controls
+        document.getElementById('set-in-btn').onclick = () => {
+            if (editorVideo.currentTime >= trimEndTime) {
+                showToast("Başlangıç noktası bitişten sonra olamaz!");
+                return;
+            }
+            trimStartTime = editorVideo.currentTime;
+            updateTimelineVisuals();
+            showToast("Başlangıç kesim noktası ayarlandı.");
+        };
+
+        document.getElementById('set-out-btn').onclick = () => {
+             if (editorVideo.currentTime <= trimStartTime) {
+                showToast("Bitiş noktası başlangıçtan önce olamaz!");
+                return;
+            }
+            trimEndTime = editorVideo.currentTime;
+            updateTimelineVisuals();
+            showToast("Bitiş kesim noktası ayarlandı.");
+        };
+
+        document.getElementById('reset-trim-btn').onclick = () => {
+            trimStartTime = 0;
+            trimEndTime = videoDuration;
+            updateTimelineVisuals();
+            showToast("Kesimler sıfırlandı.");
+        };
+
+        document.getElementById('speed-select').onchange = (e) => {
+            playbackSpeed = parseFloat(e.target.value);
+            if(isEditorPlaying) editorVideo.playbackRate = playbackSpeed;
+        };
+
+        document.getElementById('snapshot-btn').onclick = () => {
+            // Create a temp link to download current canvas state
+            const link = document.createElement('a');
+            link.download = `Snapshot_${Date.now()}.png`;
+            link.href = editorCanvas.toDataURL();
+            link.click();
+            showToast("Ekran görüntüsü kaydedildi!");
+        };
+
+        function updateTimelineVisuals() {
+            const leftPct = (trimStartTime / videoDuration) * 100;
+            const rightPct = ((videoDuration - trimEndTime) / videoDuration) * 100;
+            
+            document.getElementById('trim-visual-left').style.width = `${leftPct}%`;
+            document.getElementById('trim-visual-right').style.width = `${rightPct}%`;
+            // Active area calc handled by left/right styling automatically via css borders/position
+        }
+
+        function updateTimelineUI() {
+            const pct = (editorVideo.currentTime / videoDuration) * 100;
+            document.getElementById('scrubber-fill').style.width = `${pct}%`;
+            document.getElementById('scrubber-thumb').style.left = `${pct}%`;
+            document.getElementById('timeline-scrubber').value = pct;
+            
+            const m = Math.floor(editorVideo.currentTime/60).toString().padStart(2,'0');
+            const s = Math.floor(editorVideo.currentTime%60).toString().padStart(2,'0');
+            document.getElementById('editor-time').innerText = `${m}:${s}`;
+        }
+
+        // --- DRAWING LOOP ---
         function drawEditorFrame() {
             // 1. Draw Video
             editorCtx.drawImage(editorVideo, 0, 0, editorCanvas.width, editorCanvas.height);
 
             // 2. Draw Text Layers
-            const currentTime = editorVideo.currentTime;
-            
             textLayers.forEach(layer => {
-                // Check if visible in timeline (Assuming full duration for now, easy upgrade)
-                // Drawing Text
                 editorCtx.font = `bold ${layer.size}px Arial`;
                 editorCtx.fillStyle = layer.color;
                 editorCtx.textAlign = "center";
@@ -516,55 +677,12 @@
                 editorCtx.fillText(layer.text, layer.x, layer.y);
             });
 
-            // Update UI
-            updateTimelineUI();
-
             if (isEditorPlaying) {
                 animationFrameId = requestAnimationFrame(drawEditorFrame);
             }
         }
 
-        // --- CONTROLS ---
-        const playBtn = document.getElementById('editor-play-btn');
-        const scrubber = document.getElementById('timeline-scrubber');
-        
-        playBtn.onclick = togglePlay;
-        editorVideo.onended = () => { isEditorPlaying = false; playBtn.innerHTML = '<i class="fa-solid fa-play"></i>'; };
-
-        function togglePlay() {
-            if (isEditorPlaying) {
-                editorVideo.pause();
-                isEditorPlaying = false;
-                cancelAnimationFrame(animationFrameId);
-                playBtn.innerHTML = '<i class="fa-solid fa-play"></i>';
-            } else {
-                editorVideo.play();
-                isEditorPlaying = true;
-                drawEditorFrame();
-                playBtn.innerHTML = '<i class="fa-solid fa-pause"></i>';
-            }
-        }
-
-        // Scrubber Logic
-        scrubber.addEventListener('input', (e) => {
-            const pct = e.target.value;
-            const time = (pct / 100) * videoDuration;
-            editorVideo.currentTime = time;
-            if(!isEditorPlaying) drawEditorFrame();
-        });
-
-        function updateTimelineUI() {
-            const pct = (editorVideo.currentTime / videoDuration) * 100;
-            document.getElementById('scrubber-fill').style.width = `${pct}%`;
-            document.getElementById('scrubber-thumb').style.left = `${pct}%`;
-            document.getElementById('timeline-scrubber').value = pct;
-            
-            const m = Math.floor(editorVideo.currentTime/60).toString().padStart(2,'0');
-            const s = Math.floor(editorVideo.currentTime%60).toString().padStart(2,'0');
-            document.getElementById('editor-time').innerText = `${m}:${s}`;
-        }
-
-        // --- TEXT LAYERS LOGIC ---
+        // --- TEXT LAYERS & DRAGGING (UNCHANGED LOGIC) ---
         document.getElementById('add-text-btn').onclick = () => {
             const newLayer = {
                 id: Date.now(),
@@ -572,9 +690,7 @@
                 x: editorCanvas.width / 2,
                 y: editorCanvas.height / 2,
                 color: "#ffffff",
-                size: 60,
-                startTime: 0,
-                endTime: videoDuration
+                size: 60
             };
             textLayers.push(newLayer);
             selectLayer(newLayer.id);
@@ -585,21 +701,17 @@
         function updateLayersList() {
             const list = document.getElementById('layers-list');
             const trackArea = document.getElementById('text-tracks-area');
-            
             list.innerHTML = '';
             trackArea.innerHTML = '';
-
             textLayers.forEach(layer => {
-                // UI List Item
                 const item = document.createElement('div');
-                item.className = `p-2 rounded bg-slate-800 border border-slate-700 cursor-pointer text-sm flex justify-between items-center layer-item ${layer.id === selectedLayerId ? 'active' : ''}`;
+                item.className = `p-2 rounded bg-slate-950 border border-slate-700 cursor-pointer text-sm flex justify-between items-center layer-item ${layer.id === selectedLayerId ? 'active' : ''}`;
                 item.innerHTML = `<span class="truncate w-32 font-medium">${layer.text}</span> <i class="fa-solid fa-pen text-slate-500 text-xs"></i>`;
                 item.onclick = () => { selectLayer(layer.id); if(!isEditorPlaying) drawEditorFrame(); };
                 list.appendChild(item);
-
-                // Timeline Track Item
+                
                 const track = document.createElement('div');
-                track.className = "h-6 bg-blue-900/40 rounded border border-blue-800 relative overflow-hidden text-xs flex items-center px-2 text-blue-300";
+                track.className = "h-6 bg-blue-900/40 rounded border border-blue-800 relative overflow-hidden text-xs flex items-center px-2 text-blue-300 truncate";
                 track.innerText = "T: " + layer.text;
                 trackArea.appendChild(track);
             });
@@ -640,11 +752,9 @@
             updateLayersList();
         };
 
-        // --- MOUSE DRAGGING LOGIC ---
-        // Basic drag implementation for canvas
+        // Mouse Dragging
         function getMousePos(evt) {
             const rect = editorCanvas.getBoundingClientRect();
-            // Calculate scale ratio between CSS size and internal resolution
             const scaleX = editorCanvas.width / rect.width;
             const scaleY = editorCanvas.height / rect.height;
             return {
@@ -652,75 +762,54 @@
                 y: (evt.clientY - rect.top) * scaleY
             };
         }
-
         editorCanvas.addEventListener('mousedown', (e) => {
             const pos = getMousePos(e);
-            // Check collision with layers (reverse order to pick top-most)
             for (let i = textLayers.length - 1; i >= 0; i--) {
                 const layer = textLayers[i];
-                // Simple hit box estimation (circle based on font size)
                 const dist = Math.sqrt(Math.pow(pos.x - layer.x, 2) + Math.pow(pos.y - layer.y, 2));
-                if (dist < layer.size * 2) { // Generous hit area
+                if (dist < layer.size * 2) { 
                     selectLayer(layer.id);
                     isDragging = true;
                     dragTargetId = layer.id;
-                    if(!isEditorPlaying) drawEditorFrame(); // update selection box
+                    if(!isEditorPlaying) drawEditorFrame();
                     return;
                 }
             }
-            // If clicked empty space, deselect
             selectedLayerId = null;
             document.getElementById('layer-props').classList.add('hidden');
             updateLayersList();
             if(!isEditorPlaying) drawEditorFrame();
         });
-
         editorCanvas.addEventListener('mousemove', (e) => {
             if (isDragging && dragTargetId) {
                 const pos = getMousePos(e);
                 const layer = textLayers.find(l => l.id === dragTargetId);
-                if (layer) {
-                    layer.x = pos.x;
-                    layer.y = pos.y;
-                    if(!isEditorPlaying) drawEditorFrame();
-                }
+                if (layer) { layer.x = pos.x; layer.y = pos.y; if(!isEditorPlaying) drawEditorFrame(); }
             }
         });
-
-        editorCanvas.addEventListener('mouseup', () => {
-            isDragging = false;
-            dragTargetId = null;
-        });
+        editorCanvas.addEventListener('mouseup', () => { isDragging = false; dragTargetId = null; });
 
         // ==========================================
-        // PART 3: EXPORT / RENDER
+        // PART 3: EXPORT / RENDER (UPDATED FOR TRIM)
         // ==========================================
         
         document.getElementById('export-btn').onclick = async () => {
-            // Stop playback
             if(isEditorPlaying) togglePlay();
             
             renderOverlay.classList.remove('hidden');
             
-            // Setup recording canvas
+            // Capture Canvas Stream
             const exportStream = editorCanvas.captureStream(60);
             
-            // Add Audio from original recording if exists
-            // Since we merged audio into the webm, captureStream might not grab it automatically from canvas.
-            // We need to play the video element (which has audio) and captureStream from canvas (video).
-            // Combining them:
-            let finalExportStream;
-            
-            // Audio workaround: Capture audio from the video element using AudioContext
+            // Audio workaround
             const acExport = new AudioContext();
             const sourceNode = acExport.createMediaElementSource(editorVideo);
             const destNode = acExport.createMediaStreamDestination();
             sourceNode.connect(destNode);
-            sourceNode.connect(acExport.destination); // Optional: hear it while rendering
+            sourceNode.connect(acExport.destination); 
 
-            const audioTracks = destNode.stream.getAudioTracks();
-            if (audioTracks.length > 0) {
-                exportStream.addTrack(audioTracks[0]);
+            if (destNode.stream.getAudioTracks().length > 0) {
+                exportStream.addTrack(destNode.stream.getAudioTracks()[0]);
             }
             
             const recorder = new MediaRecorder(exportStream, { mimeType: 'video/webm;codecs=vp9' });
@@ -737,30 +826,40 @@
                 a.click();
                 
                 renderOverlay.classList.add('hidden');
-                showToast("Video başarıyla indirildi!");
+                showToast("Video indiriliyor...");
+                
+                // Reset playback settings
+                editorVideo.currentTime = trimStartTime;
+                editorVideo.playbackRate = 1.0;
             };
 
             recorder.start();
 
-            // Play video from start to end to "bake" the canvas
-            editorVideo.currentTime = 0;
-            // Mute video so user doesn't hear double audio if we connected to destination
-            // editorVideo.muted = true; // Caution: MediaElementSource might need unmuted
+            // RENDER LOGIC: Seek to Trim Start, Play until Trim End
+            editorVideo.currentTime = trimStartTime;
+            editorVideo.playbackRate = playbackSpeed; // Render at selected speed
             
             await editorVideo.play();
             
             const updateRenderLoop = () => {
-                drawEditorFrame(); // Draw text on canvas
+                drawEditorFrame();
                 
-                // Progress Bar
-                const pct = (editorVideo.currentTime / videoDuration) * 100;
+                // Progress within trimmed area
+                const duration = trimEndTime - trimStartTime;
+                const current = editorVideo.currentTime - trimStartTime;
+                let pct = (current / duration) * 100;
+                if(pct > 100) pct = 100;
+                if(pct < 0) pct = 0;
+
                 document.getElementById('render-progress').style.width = `${pct}%`;
                 document.getElementById('render-status').innerText = Math.round(pct) + "%";
 
-                if (!editorVideo.paused && !editorVideo.ended) {
+                // Stop if we reach trimEndTime
+                if (!editorVideo.paused && !editorVideo.ended && editorVideo.currentTime < trimEndTime) {
                     requestAnimationFrame(updateRenderLoop);
                 } else {
                     recorder.stop();
+                    editorVideo.pause();
                 }
             };
             
