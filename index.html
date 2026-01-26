@@ -56,6 +56,7 @@
             outline: 2px solid rgba(255, 255, 255, 0.8);
             border-radius: 4px;
             display: block; 
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); /* Smooth resize for mode switch */
         }
         #crop-box.recording-mode {
             box-shadow: none;
@@ -66,6 +67,20 @@
             outline-offset: 2px;
             animation: guide-pulse 2s infinite;
             border-radius: 0;
+        }
+        
+        /* Fullscreen Mode Override */
+        #crop-box.fullscreen-mode {
+            top: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
+            height: 100% !important;
+            cursor: default;
+            outline: 2px solid rgba(74, 222, 128, 0.5); /* Greenish hint for full screen */
+            border-radius: 0;
+        }
+        #crop-box.fullscreen-mode .resize-handle {
+            display: none !important;
         }
         
         @keyframes guide-pulse {
@@ -155,7 +170,7 @@
             border: 2px solid white;
             transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
             background: #000;
-            pointer-events: none;
+            pointer-events: auto; /* Allow dragging if needed in future, but parent handles it */
         }
         #webcam-preview-layer video {
             width: 100%;
@@ -184,6 +199,11 @@
         .color-btn:hover { transform: scale(1.1); }
         .color-btn.active { border-color: white; transform: scale(1.2); box-shadow: 0 0 0 2px rgba(255,255,255,0.2); }
         
+        /* Cam Positions relative to crop box */
+        .cam-pos-top-left { top: 20px; left: 20px; }
+        .cam-pos-top-right { top: 20px; right: 20px; }
+        .cam-pos-bottom-left { bottom: 20px; left: 20px; }
+        .cam-pos-bottom-right { bottom: 20px; right: 20px; }
     </style>
 </head>
 <body class="bg-slate-950 text-slate-200 font-sans h-screen flex flex-col overflow-hidden select-none bg-[url('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=2564&auto=format&fit=crop')] bg-cover bg-center">
@@ -301,7 +321,7 @@
                     <canvas id="drawing-canvas-layer"></canvas>
 
                     <!-- Draggable Crop Box -->
-                    <div id="crop-box" class="absolute hidden" style="top: 10%; left: 10%; width: 50%; height: 50%;">
+                    <div id="crop-box" class="absolute" style="top: 0; left: 0; width: 100%; height: 100%;">
                         <div class="resize-handle handle-nw" data-dir="nw"></div>
                         <div class="resize-handle handle-ne" data-dir="ne"></div>
                         <div class="resize-handle handle-sw" data-dir="sw"></div>
@@ -312,8 +332,8 @@
                             <video id="webcam-live-feed" autoplay muted playsinline></video>
                         </div>
 
-                        <div class="absolute -top-10 left-0 bg-white text-black text-[10px] font-bold px-3 py-1.5 rounded shadow-lg opacity-90 transform translate-y-2 group-hover:translate-y-0 transition-transform">
-                            KAYIT ALANI
+                        <div class="absolute -top-10 left-0 bg-white text-black text-[10px] font-bold px-3 py-1.5 rounded shadow-lg opacity-90 transform translate-y-2 group-hover:translate-y-0 transition-transform" id="crop-label">
+                            TÜM EKRAN
                         </div>
                     </div>
                 </div>
@@ -480,9 +500,9 @@
         let isDrawing = false;
         let isMouseHighlight = false;
         let drawColor = '#ef4444';
-        let drawPaths = []; // Array of { points: [{x,y}], color }
+        let drawPaths = []; 
         let currentPath = [];
-        let mousePos = { x: -100, y: -100 }; // For highlight
+        let mousePos = { x: -100, y: -100 }; 
 
         const els = {
             setupPanel: document.getElementById('setup-panel'),
@@ -493,8 +513,8 @@
             cropOverlay: document.getElementById('crop-overlay'),
             cropSourceVideo: document.getElementById('crop-source-video'),
             cropBox: document.getElementById('crop-box'),
-            cropSizeInfo: document.getElementById('crop-size-info'),
             cropContainer: document.getElementById('crop-container'),
+            cropLabel: document.getElementById('crop-label'),
             toast: document.getElementById('toast'),
             toastMsg: document.getElementById('toast-msg'),
             
@@ -570,17 +590,33 @@
                 const mode = btn.dataset.mode;
                 isCropMode = (mode === 'custom');
                 
-                if (isCropMode) {
-                    els.cropBox.classList.remove('hidden');
-                    updateCropLabels();
-                } else {
-                    els.cropBox.classList.add('hidden');
-                    const vidW = els.cropSourceVideo.videoWidth;
-                    const vidH = els.cropSourceVideo.videoHeight;
-                    cropState = { sx: 0, sy: 0, sw: vidW, sh: vidH };
-                }
+                updateCropBoxMode();
             });
         });
+
+        function updateCropBoxMode() {
+            if (isCropMode) {
+                // Custom Mode: Enable sizing
+                els.cropBox.classList.remove('fullscreen-mode');
+                // Restore Custom Size (e.g. 80%)
+                const contW = els.cropSourceVideo.offsetWidth;
+                const contH = els.cropSourceVideo.offsetHeight;
+                els.cropBox.style.width = `${contW * 0.8}px`;
+                els.cropBox.style.height = `${contH * 0.8}px`;
+                els.cropBox.style.left = `${contW * 0.1}px`;
+                els.cropBox.style.top = `${contH * 0.1}px`;
+                els.cropLabel.innerText = "KAYIT ALANI";
+            } else {
+                // Fullscreen Mode: Lock to full
+                els.cropBox.classList.add('fullscreen-mode');
+                els.cropBox.style.width = '100%';
+                els.cropBox.style.height = '100%';
+                els.cropBox.style.left = '0';
+                els.cropBox.style.top = '0';
+                els.cropLabel.innerText = "TÜM EKRAN";
+            }
+            updateCropLabels();
+        }
 
         // Cam Position & Shape
         els.camPosBtns.forEach(btn => {
@@ -675,8 +711,6 @@
 
                 if(isDrawing && isDrawingMode) {
                     currentPath.push({ x, y });
-                    // Store immediately for rendering
-                    // In a real app we'd draw to an offscreen canvas here too
                 }
             });
 
@@ -772,22 +806,13 @@
             els.cropSourceVideo.onloadedmetadata = () => {
                 const vidW = els.cropSourceVideo.videoWidth;
                 const vidH = els.cropSourceVideo.videoHeight;
-                const contW = els.cropSourceVideo.offsetWidth;
-                const scale = contW / vidW;
-                
-                const boxW = contW * 0.5;
-                const boxH = (vidH * scale) * 0.5;
-                
-                els.cropBox.style.width = `${boxW}px`;
-                els.cropBox.style.height = `${boxH}px`;
-                els.cropBox.style.left = `${(contW - boxW)/2}px`;
-                els.cropBox.style.top = `${((vidH * scale) - boxH)/2}px`;
                 
                 // Initialize Drawing Layer
                 setupDrawingCanvas();
                 
-                // DEFAULT FULL SCREEN
-                document.querySelector('.segment-btn[data-mode="fullscreen"]').click();
+                // FORCE DEFAULT FULL SCREEN MODE
+                isCropMode = false;
+                updateCropBoxMode(); // Initialize Fullscreen Box
                 
                 cropState = { sx: 0, sy: 0, sw: vidW, sh: vidH };
             };
@@ -800,7 +825,8 @@
         let startX, startY, startLeft, startTop, startW, startH;
 
         els.cropContainer.addEventListener('mousedown', (e) => {
-            if(!isCropMode || isDrawingMode) return; // Disable drag if drawing
+            if(!isCropMode || isDrawingMode) return; // Disable drag if drawing or fullscreen
+            
             if (e.target.classList.contains('resize-handle')) {
                 isResizing = true;
                 resizeDir = e.target.dataset.dir;
@@ -889,13 +915,24 @@
             els.startRecordingBtn.onclick = stopRecording; 
 
             // Visual Guide Mode
-            if (isCropMode) {
-                els.cropBox.classList.add('recording-mode');
-                document.querySelectorAll('.resize-handle').forEach(h => h.classList.add('hidden'));
-                els.webcamPreviewLayer.classList.add('hidden'); // Hide actual preview, will be drawn on canvas
-            } else {
-                els.cropBox.classList.add('hidden');
-            }
+            els.cropBox.classList.add('recording-mode');
+            document.querySelectorAll('.resize-handle').forEach(h => h.classList.add('hidden'));
+            
+            // WEBCAM HIDE/SHOW LOGIC FOR RECORDING:
+            // Since we draw webcam on canvas, we hide the HTML preview element during recording to avoid double vision if recording full screen?
+            // Actually, we keep it visible as a guide for the user, but we make sure the recorder records the CANVAS where we manually draw everything.
+            // But wait, if we record screen via displayMedia, we capture this HTML element too if it's on screen!
+            // Correct approach: We use Canvas to compose. So we capture the video streams in JS and draw to canvas.
+            // The HTML elements are just for user preview.
+            // We should hide the Webcam Preview Layer during recording IF it obstructs the view?
+            // NO, the user needs to see themselves.
+            // BUT, if we record the screen (DisplayMedia), the user will see the webcam preview on their screen.
+            // AND we draw it on canvas.
+            // This results in double webcam if we record the area where the preview is.
+            // However, we are using a Compositor Canvas.
+            // We record the CANVAS stream, not the screen stream directly.
+            // So what shows on screen doesn't matter for the recording content, only for user feedback.
+            // We will keep the preview visible for the user.
 
             const canvas = document.getElementById('compositor-canvas');
             const ctx = canvas.getContext('2d');
@@ -955,7 +992,6 @@
                     ctx.strokeStyle = drawColor;
                     ctx.lineWidth = 5;
                     ctx.lineCap = 'round';
-                    // Map visual canvas coords to recording canvas coords
                     const visW = els.drawingCanvasLayer.width;
                     const visH = els.drawingCanvasLayer.height;
                     
@@ -968,17 +1004,16 @@
                     ctx.stroke();
                 }
 
-                // 3. Mouse Highlight (Highlight cursor on canvas if hovering)
+                // 3. Mouse Highlight
                 if (isMouseHighlight) {
                     const visW = els.drawingCanvasLayer.width;
                     const visH = els.drawingCanvasLayer.height;
                     const cx = (mousePos.x / visW) * canvas.width;
                     const cy = (mousePos.y / visH) * canvas.height;
                     
-                    // Only draw if within bounds
                     if (cx >= 0 && cx <= canvas.width && cy >= 0 && cy <= canvas.height) {
                         ctx.save();
-                        ctx.fillStyle = "rgba(250, 204, 21, 0.4)"; // Yellow semi-transparent
+                        ctx.fillStyle = "rgba(250, 204, 21, 0.4)";
                         ctx.beginPath();
                         ctx.arc(cx, cy, 20, 0, Math.PI * 2);
                         ctx.fill();
@@ -1004,7 +1039,6 @@
                     if (camShape === 'circle') {
                         ctx.arc(x+size/2, y+size/2, size/2, 0, Math.PI*2);
                     } else {
-                        // Round rect for square shape
                         ctx.roundRect(x, y, size, size, 20); 
                     }
                     
