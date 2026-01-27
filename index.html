@@ -210,6 +210,7 @@
             </a>
 
             <div id="keyboard-hint" class="hidden md:flex gap-2 text-[10px] text-slate-500 font-mono items-center">
+                <!-- F8 kaldırıldı -->
                 <div class="flex items-center gap-1 bg-white/5 px-2 py-1 rounded border border-white/5">
                     <kbd class="font-sans">F9</kbd> Duraklat
                 </div>
@@ -224,6 +225,12 @@
     <!-- Main Workspace -->
     <main class="flex-1 flex overflow-hidden relative items-center justify-center p-6 z-10">
         
+        <!-- Privacy/Browser Warning -->
+        <div class="fixed bottom-4 left-1/2 transform -translate-x-1/2 text-[10px] text-slate-500 bg-slate-900/80 px-4 py-2 rounded-full border border-slate-800 backdrop-blur-sm pointer-events-none z-0 flex items-center gap-2 whitespace-nowrap">
+            <i class="fa-solid fa-lock text-green-500"></i>
+            <span>%100 Gizli: Verileriniz sunucuya gönderilmez, sadece tarayıcınızda işlenir.</span>
+        </div>
+
         <!-- VIEW 1: Setup Panel -->
         <div id="setup-panel" class="w-full max-w-[520px] glass rounded-[32px] p-12 shadow-2xl relative overflow-hidden animate-fade-in border border-white/10">
             <div class="absolute -top-40 -right-40 w-80 h-80 bg-indigo-600/20 rounded-full blur-[100px]"></div>
@@ -313,6 +320,13 @@
     <!-- Countdown Overlay -->
     <div id="countdown-overlay" class="hidden fixed inset-0 bg-black/80 backdrop-blur-md z-[9998] flex items-center justify-center">
         <div class="text-9xl font-black text-white animate-pulse tabular-nums tracking-tighter" id="countdown-text">3</div>
+    </div>
+
+    <!-- Processing Overlay (NEW) -->
+    <div id="processing-overlay" class="hidden fixed inset-0 bg-slate-950/95 z-[10000] flex flex-col items-center justify-center animate-fade-in">
+        <div class="w-16 h-16 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-6"></div>
+        <h2 class="text-2xl font-bold text-white mb-2 tracking-tight">Video Hazırlanıyor</h2>
+        <p class="text-slate-400 text-sm">Kaydınız işleniyor ve indirilmeye hazırlanıyor, lütfen bekleyin...</p>
     </div>
 
     <!-- Crop/Area Selection Overlay (Preview Mode) -->
@@ -466,6 +480,7 @@
             cropLabel: document.getElementById('crop-label'),
             toast: document.getElementById('toast'),
             toastMsg: document.getElementById('toast-msg'),
+            processingOverlay: document.getElementById('processing-overlay'), // NEW
             
             initBtn: document.getElementById('init-btn'),
             startRecordingBtn: document.getElementById('start-recording-btn'),
@@ -789,6 +804,10 @@
             vScreen.srcObject = streams.display;
             await vScreen.play();
 
+            // Safety check for dimensions
+            if (!cropState.sw || cropState.sw <= 0) cropState.sw = vScreen.videoWidth;
+            if (!cropState.sh || cropState.sh <= 0) cropState.sh = vScreen.videoHeight;
+
             canvas.width = cropState.sw;
             canvas.height = cropState.sh;
 
@@ -813,6 +832,10 @@
             function draw() {
                 if(!isDrawingLoop) return;
                 
+                // --- FIX: Black Background Fill (Fixes dark video on download) ---
+                ctx.fillStyle = '#000';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
                 // Draw Crop Area
                 ctx.drawImage(vScreen, 
                     cropState.sx, cropState.sy, cropState.sw, cropState.sh, 
@@ -928,15 +951,44 @@
             clearInterval(timerInt);
             updatePageTitle();
             
+            // UI Temizliği
             els.cropToolbar.classList.remove('hidden'); 
             els.recordingStatus.classList.add('hidden');
             els.cropOverlay.classList.add('hidden');
-            els.resultPanel.classList.remove('hidden');
-            els.statusBadge.innerText = "TAMAMLANDI";
             
-            const blob = new Blob(recordedChunks, { type: mediaRecorder.mimeType });
-            recordedBlobUrl = URL.createObjectURL(blob);
-            els.previewVideo.src = recordedBlobUrl;
+            // "Hazırlanıyor" Ekranını Göster
+            els.processingOverlay.classList.remove('hidden');
+            
+            // İşlemi asenkron yaparak UI'ın donmasını engelle ve kullanıcıya bilgi ver
+            setTimeout(() => {
+                try {
+                    const blob = new Blob(recordedChunks, { type: mediaRecorder.mimeType });
+                    recordedBlobUrl = URL.createObjectURL(blob);
+                    els.previewVideo.src = recordedBlobUrl;
+                    
+                    // Video yüklendiğinde (metadata) işlem tamamlandı say
+                    els.previewVideo.onloadeddata = () => {
+                        els.processingOverlay.classList.add('hidden');
+                        els.resultPanel.classList.remove('hidden');
+                        els.statusBadge.innerText = "TAMAMLANDI";
+                        showToast("Video başarıyla hazırlandı!");
+                    };
+                    
+                    // Fallback: Eğer onloadeddata tetiklenmezse (bazen blob kaynaklarında olabilir)
+                    // manuel süre aşımı ile aç.
+                    setTimeout(() => {
+                        if (!els.resultPanel.classList.contains('hidden')) return;
+                        els.processingOverlay.classList.add('hidden');
+                        els.resultPanel.classList.remove('hidden');
+                        els.statusBadge.innerText = "TAMAMLANDI";
+                    }, 1000);
+
+                } catch (e) {
+                    console.error("Blob oluşturma hatası:", e);
+                    showToast("Video oluşturulurken bir hata oluştu.");
+                    els.processingOverlay.classList.add('hidden');
+                }
+            }, 1000); // En az 1 saniye bekleme efekti
         }
 
         function downloadVideo(ext) {
