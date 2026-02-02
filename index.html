@@ -210,6 +210,7 @@
             </a>
 
             <div id="keyboard-hint" class="hidden md:flex gap-2 text-[10px] text-slate-500 font-mono items-center">
+                <!-- F8 kaldırıldı -->
                 <div class="flex items-center gap-1 bg-white/5 px-2 py-1 rounded border border-white/5">
                     <kbd class="font-sans">F9</kbd> Duraklat
                 </div>
@@ -424,7 +425,7 @@
               <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" id="rec-dot-anim"></span>
               <span class="relative inline-flex rounded-full h-3 w-3 bg-red-500" id="rec-dot"></span>
             </div>
-            <span class="font-mono text-xl w-20 tracking-wider font-bold text-white" id="timer">00:00</span>
+            <span class="font-mono text-xl w-20 tracking-wider font-bold text-white" id="timer">00:00:00</span>
         </div>
         
         <div class="h-6 w-px bg-white/10"></div>
@@ -518,9 +519,10 @@
                 if (isPaused) {
                     document.title = `⏸️ Duraklatıldı | RecMaster`;
                 } else {
-                    const m = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
+                    const h = Math.floor(totalSeconds / 3600).toString().padStart(2, '0');
+                    const m = Math.floor((totalSeconds % 3600) / 60).toString().padStart(2, '0');
                     const s = (totalSeconds % 60).toString().padStart(2, '0');
-                    document.title = `🔴 ${m}:${s} Kaydediliyor | RecMaster`;
+                    document.title = `🔴 ${h}:${m}:${s} Kaydediliyor | RecMaster`;
                 }
             } else {
                 document.title = "RecMaster: Modern Ekran Kaydedici";
@@ -899,7 +901,12 @@
             let mime = 'video/mp4';
             if(!MediaRecorder.isTypeSupported(mime)) mime = 'video/webm;codecs=vp9';
 
-            mediaRecorder = new MediaRecorder(finalStream, { mimeType: mime });
+            // OPTIMIZED BITRATE FOR LONG RECORDINGS
+            mediaRecorder = new MediaRecorder(finalStream, { 
+                mimeType: mime,
+                videoBitsPerSecond: 3000000 // 3 Mbps Optimized
+            });
+            
             recordedChunks = [];
             mediaRecorder.ondataavailable = e => { if(e.data.size>0) recordedChunks.push(e.data); };
             mediaRecorder.onstop = () => {
@@ -920,9 +927,10 @@
             timerInt = setInterval(() => {
                 if(!isPaused) {
                     totalSeconds++;
-                    const m = Math.floor(totalSeconds/60).toString().padStart(2,'0');
-                    const s = (totalSeconds%60).toString().padStart(2,'0');
-                    els.timer.innerText = `${m}:${s}`;
+                    const h = Math.floor(totalSeconds / 3600).toString().padStart(2, '0');
+                    const m = Math.floor((totalSeconds % 3600) / 60).toString().padStart(2, '0');
+                    const s = (totalSeconds % 60).toString().padStart(2, '0');
+                    els.timer.innerText = `${h}:${m}:${s}`;
                     updatePageTitle();
                 }
             }, 1000);
