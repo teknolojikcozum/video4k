@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RecMaster: Modern Ekran Kaydedici</title>
+    <title>RecMaster: Stabil Ekran Kaydedici</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -35,14 +35,12 @@
             to { opacity: 1; transform: scale(1); }
         }
         
-        /* Glass Effect */
         .glass {
             background: rgba(15, 23, 42, 0.7);
             backdrop-filter: blur(16px);
             border: 1px solid rgba(255, 255, 255, 0.08);
         }
 
-        /* Crop Box */
         #crop-container {
             user-select: none;
             touch-action: none;
@@ -69,7 +67,6 @@
             border-radius: 0;
         }
         
-        /* Fullscreen Mode Override */
         #crop-box.fullscreen-mode {
             top: 0 !important;
             left: 0 !important;
@@ -106,7 +103,6 @@
         .handle-sw { bottom: -6px; left: -6px; cursor: sw-resize; }
         .handle-se { bottom: -6px; right: -6px; cursor: se-resize; }
 
-        /* Segmented Control */
         .segmented-control {
             background: rgba(2, 6, 23, 0.5);
             padding: 4px;
@@ -129,7 +125,6 @@
             box-shadow: 0 1px 3px rgba(0,0,0,0.2);
         }
 
-        /* Audio Visualizer Bar */
         .audio-meter {
             width: 4px;
             background-color: #334155;
@@ -142,7 +137,6 @@
             box-shadow: 0 0 4px #4ade80;
         }
 
-        /* Cam Position Grid */
         .cam-pos-btn {
             background-color: #334155;
             border-radius: 2px;
@@ -154,14 +148,12 @@
         .cam-pos-btn:hover { background-color: #475569; }
         .cam-pos-btn.active { background-color: #f8fafc; border-color: #94a3b8; box-shadow: 0 0 4px rgba(255,255,255,0.3); }
         
-        /* Hidden UI State */
         .ui-hidden {
             opacity: 0;
             pointer-events: none;
             transform: translate(-50%, 20px) !important;
         }
 
-        /* Webcam Preview Layer */
         #webcam-preview-layer {
             position: absolute;
             z-index: 25;
@@ -179,7 +171,6 @@
             transform: scaleX(-1);
         }
         
-        /* Cam Positions */
         .cam-pos-top-left { top: 20px; left: 20px; }
         .cam-pos-top-right { top: 20px; right: 20px; }
         .cam-pos-bottom-left { bottom: 20px; left: 20px; }
@@ -188,10 +179,13 @@
 </head>
 <body class="bg-slate-950 text-slate-200 font-sans h-screen flex flex-col overflow-hidden select-none bg-[url('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=2564&auto=format&fit=crop')] bg-cover bg-center">
     
-    <!-- Backdrop Overlay -->
+    <!-- Silent Audio for Keep-Alive -->
+    <audio id="keep-alive-audio" loop class="hidden">
+        <source src="data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4LjI5LjEwMAAAAAAAAAAAAAAA//OEAAAAAAAAAAAAAAAAAAAAAAAASW5mbwAAAA8AAAAEAAABIADAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMD//////////////////////////////////////////////////////////////////wAAAP//OEAAAAAAAAAAAAAAAAAAAAAAAAMiAAAAAAAAAAABAAAAAAAAAAAA//OEAAAAAAAAAAAAAAAAAAAAAAAAMiAAAAAAAAAAABAAAAAAAAAAAA//OEAAAAAAAAAAAAAAAAAAAAAAAAMiAAAAAAAAAAABAAAAAAAAAAAA" type="audio/mpeg">
+    </audio>
+
     <div class="absolute inset-0 bg-slate-950/90 backdrop-blur-sm z-0"></div>
 
-    <!-- Header -->
     <header class="h-16 flex items-center px-6 justify-between shrink-0 z-50 relative border-b border-white/5 bg-slate-950/50 backdrop-blur-md">
         <div class="flex items-center gap-3">
             <div class="w-9 h-9 bg-white/5 rounded-xl flex items-center justify-center border border-white/10 shadow-inner">
@@ -203,14 +197,12 @@
             </div>
         </div>
         <div class="flex items-center gap-4">
-            <!-- YouTube Channel Link -->
             <a href="https://www.youtube.com/@teknolojikcozumvideo" target="_blank" class="flex items-center gap-2 bg-red-600/10 hover:bg-red-600/20 text-red-500 px-3 py-1.5 rounded-lg border border-red-500/20 transition-colors text-xs font-medium no-underline mr-2">
                 <i class="fa-brands fa-youtube text-sm"></i>
                 <span class="hidden md:inline">Teknolojik Çözüm Videoları</span>
             </a>
 
             <div id="keyboard-hint" class="hidden md:flex gap-2 text-[10px] text-slate-500 font-mono items-center">
-                <!-- F8 kaldırıldı -->
                 <div class="flex items-center gap-1 bg-white/5 px-2 py-1 rounded border border-white/5">
                     <kbd class="font-sans">F9</kbd> Duraklat
                 </div>
@@ -222,16 +214,13 @@
         </div>
     </header>
 
-    <!-- Main Workspace -->
     <main class="flex-1 flex overflow-hidden relative items-center justify-center p-6 z-10">
         
-        <!-- Privacy/Browser Warning -->
         <div class="fixed bottom-4 left-1/2 transform -translate-x-1/2 text-[10px] text-slate-500 bg-slate-900/80 px-4 py-2 rounded-full border border-slate-800 backdrop-blur-sm pointer-events-none z-0 flex items-center gap-2 whitespace-nowrap">
             <i class="fa-solid fa-lock text-green-500"></i>
             <span>%100 Gizli: Verileriniz sunucuya gönderilmez, sadece tarayıcınızda işlenir.</span>
         </div>
 
-        <!-- VIEW 1: Setup Panel -->
         <div id="setup-panel" class="w-full max-w-[520px] glass rounded-[32px] p-12 shadow-2xl relative overflow-hidden animate-fade-in border border-white/10">
             <div class="absolute -top-40 -right-40 w-80 h-80 bg-indigo-600/20 rounded-full blur-[100px]"></div>
             <div class="absolute -bottom-40 -left-40 w-80 h-80 bg-rose-600/20 rounded-full blur-[100px]"></div>
@@ -246,7 +235,6 @@
 
             <div class="space-y-6 relative z-10">
                 <div class="grid grid-cols-2 gap-5">
-                    <!-- Mic Toggle -->
                     <label class="cursor-pointer bg-slate-800/40 hover:bg-slate-800/70 border border-white/5 hover:border-indigo-500/30 rounded-2xl p-6 flex flex-col items-center justify-center gap-4 transition-all group relative overflow-hidden">
                         <div class="absolute inset-0 bg-indigo-500/0 group-hover:bg-indigo-500/5 transition-colors duration-300"></div>
                         <div class="w-14 h-14 rounded-full bg-slate-700/50 flex items-center justify-center group-hover:bg-indigo-500/20 transition-colors duration-300 ring-1 ring-white/5">
@@ -259,7 +247,6 @@
                         <input type="checkbox" id="mic-toggle" class="accent-indigo-500 w-5 h-5 mt-1 border-white/10 bg-slate-900/50">
                     </label>
 
-                    <!-- Webcam Toggle -->
                     <label class="cursor-pointer bg-slate-800/40 hover:bg-slate-800/70 border border-white/5 hover:border-rose-500/30 rounded-2xl p-6 flex flex-col items-center justify-center gap-4 transition-all group relative overflow-hidden">
                         <div class="absolute inset-0 bg-rose-500/0 group-hover:bg-rose-500/5 transition-colors duration-300"></div>
                         <div class="w-14 h-14 rounded-full bg-slate-700/50 flex items-center justify-center group-hover:bg-rose-500/20 transition-colors duration-300 ring-1 ring-white/5">
@@ -280,7 +267,6 @@
             </div>
         </div>
 
-        <!-- VIEW 2: Result & Download Panel -->
         <div id="result-panel" class="hidden w-full h-full flex flex-col items-center justify-center gap-8 animate-fade-in z-30 p-6 relative">
             <div class="w-full max-w-5xl bg-black rounded-2xl overflow-hidden shadow-2xl border border-white/10 relative group ring-1 ring-white/5 aspect-video flex items-center justify-center bg-zinc-900">
                 <video id="preview-video" class="max-w-full max-h-full" controls></video>
@@ -310,28 +296,21 @@
 
     </main>
 
-    <!-- Global Overlays (Moved to BODY for proper z-indexing) -->
-    
-    <!-- Toast Notification -->
     <div id="toast" class="hidden fixed top-6 right-6 bg-slate-900/95 border border-slate-700 text-white px-5 py-3 rounded-xl shadow-2xl z-[9999] flex items-center animate-fade-in text-sm font-medium backdrop-blur transition-all duration-300">
         <i class="fa-solid fa-circle-info text-indigo-400 mr-3 text-lg"></i> <span id="toast-msg">Mesaj</span>
     </div>
     
-    <!-- Countdown Overlay -->
     <div id="countdown-overlay" class="hidden fixed inset-0 bg-black/80 backdrop-blur-md z-[9998] flex items-center justify-center">
         <div class="text-9xl font-black text-white animate-pulse tabular-nums tracking-tighter" id="countdown-text">3</div>
     </div>
 
-    <!-- Processing Overlay (NEW) -->
     <div id="processing-overlay" class="hidden fixed inset-0 bg-slate-950/95 z-[10000] flex flex-col items-center justify-center animate-fade-in">
         <div class="w-16 h-16 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-6"></div>
         <h2 class="text-2xl font-bold text-white mb-2 tracking-tight">Video Hazırlanıyor</h2>
-        <p class="text-slate-400 text-sm">Kaydınız işleniyor ve indirilmeye hazırlanıyor, lütfen bekleyin...</p>
+        <p class="text-slate-400 text-sm">Büyük dosyalar için bu işlem biraz zaman alabilir, lütfen bekleyin...</p>
     </div>
 
-    <!-- Crop/Area Selection Overlay (Preview Mode) -->
     <div id="crop-overlay" class="hidden fixed inset-0 bg-slate-950 z-[9990] flex flex-col animate-fade-in">
-        <!-- Toolbar (Gizlenebilir) -->
         <div id="crop-toolbar" class="h-20 border-b border-white/5 bg-slate-900/90 flex items-center justify-between px-8 shrink-0 z-50 backdrop-blur-xl transition-transform duration-300">
             
             <div class="flex items-center gap-6">
@@ -348,9 +327,7 @@
                 </div>
             </div>
 
-            <!-- Dynamic Controls -->
             <div class="flex items-center gap-6">
-                <!-- Audio Visualizer -->
                 <div id="audio-preview" class="hidden items-center gap-3 border-r border-white/10 pr-6 h-10">
                     <div class="flex flex-col items-end">
                         <span class="text-[10px] uppercase text-slate-500 font-bold leading-none mb-1">Ses</span>
@@ -365,7 +342,6 @@
                     </div>
                 </div>
 
-                <!-- Camera Position Controls -->
                 <div id="cam-controls" class="hidden items-center gap-3 border-r border-white/10 pr-6 h-10">
                     <div class="flex flex-col items-end">
                         <span class="text-[10px] uppercase text-slate-500 font-bold leading-none mb-1">Webcam</span>
@@ -392,20 +368,16 @@
             </div>
         </div>
 
-        <!-- Canvas Container -->
         <div class="flex-1 relative bg-black/90 overflow-hidden flex items-center justify-center p-8 h-full">
             <div id="crop-container" class="relative shadow-2xl ring-1 ring-white/10 rounded-lg overflow-hidden bg-black max-w-full max-h-full">
-                <!-- Source Video Preview -->
                 <video id="crop-source-video" autoplay muted class="block max-w-full max-h-[80vh] opacity-100"></video>
                 
-                <!-- Draggable Crop Box -->
                 <div id="crop-box" class="absolute hidden" style="top: 10%; left: 10%; width: 50%; height: 50%;">
                     <div class="resize-handle handle-nw" data-dir="nw"></div>
                     <div class="resize-handle handle-ne" data-dir="ne"></div>
                     <div class="resize-handle handle-sw" data-dir="sw"></div>
                     <div class="resize-handle handle-se" data-dir="se"></div>
                     
-                    <!-- Webcam Preview Layer (Live) -->
                     <div id="webcam-preview-layer" class="hidden w-32 h-32 rounded-full cam-pos-bottom-right">
                         <video id="webcam-live-feed" autoplay muted playsinline></video>
                     </div>
@@ -418,7 +390,6 @@
         </div>
     </div>
 
-    <!-- Recording Status Bar -->
     <div id="recording-status" class="hidden fixed top-8 left-1/2 transform -translate-x-1/2 bg-slate-900/90 backdrop-blur-md border border-white/10 pr-4 pl-6 py-2.5 rounded-full flex items-center gap-6 shadow-2xl z-[9999] transition-all duration-500 ease-in-out">
         <div class="flex items-center gap-3">
             <div class="relative flex h-3 w-3">
@@ -440,15 +411,11 @@
         </div>
     </div>
 
-    <!-- Hidden Video Elements for Composition -->
     <video id="src-video-screen" autoplay muted class="hidden"></video>
     <video id="src-video-cam" autoplay muted class="hidden"></video>
-    <!-- Master Canvas for Recording -->
     <canvas id="compositor-canvas" class="hidden"></canvas>
 
     <script>
-        /** RecMaster Modern Logic **/
-        
         let mediaRecorder;
         let recordedChunks = [];
         let recordedBlobUrl = null;
@@ -458,7 +425,6 @@
         let isCropMode = false;
         let isRecording = false;
         
-        // Cam & Audio State
         let camPosition = 'bottom-right';
         let camShape = 'circle';
         let audioContext, analyser, dataArray, animationId;
@@ -481,6 +447,7 @@
             toast: document.getElementById('toast'),
             toastMsg: document.getElementById('toast-msg'),
             processingOverlay: document.getElementById('processing-overlay'),
+            keepAliveAudio: document.getElementById('keep-alive-audio'),
             
             initBtn: document.getElementById('init-btn'),
             startRecordingBtn: document.getElementById('start-recording-btn'),
@@ -507,7 +474,6 @@
             recDotAnim: document.getElementById('rec-dot-anim')
         };
 
-        // --- Helpers ---
         function showToast(msg) {
             els.toastMsg.innerText = msg;
             els.toast.classList.remove('hidden');
@@ -529,7 +495,6 @@
             }
         }
 
-        // --- UI Interactions ---
         els.micToggle.addEventListener('change', (e) => {
             els.iconMic.className = e.target.checked ? "fa-solid fa-microphone text-xl text-indigo-400 transition-colors" : "fa-solid fa-microphone text-xl text-slate-400 transition-colors";
         });
@@ -537,22 +502,18 @@
             els.iconCam.className = e.target.checked ? "fa-solid fa-video text-xl text-rose-400 transition-colors" : "fa-solid fa-video text-xl text-slate-400 transition-colors";
         });
 
-        // Mode Switching
         document.querySelectorAll('.segment-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 document.querySelectorAll('.segment-btn').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
-                
                 const mode = btn.dataset.mode;
                 isCropMode = (mode === 'custom');
-                
                 updateCropBoxMode();
             });
         });
 
         function updateCropBoxMode() {
             if (isCropMode) {
-                // Custom Mode: Enable sizing
                 els.cropBox.classList.remove('fullscreen-mode');
                 const contW = els.cropSourceVideo.offsetWidth;
                 const contH = els.cropSourceVideo.offsetHeight;
@@ -562,7 +523,6 @@
                 els.cropBox.style.top = `${contH * 0.1}px`;
                 els.cropLabel.innerText = "KAYIT ALANI";
             } else {
-                // Fullscreen Mode: Lock to full
                 els.cropBox.classList.add('fullscreen-mode');
                 els.cropBox.style.width = '100%';
                 els.cropBox.style.height = '100%';
@@ -573,15 +533,11 @@
             updateCropLabels();
         }
 
-        // Cam Position & Shape
         els.camPosBtns.forEach(btn => {
             btn.addEventListener('click', () => {
                 els.camPosBtns.forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
-                
-                // Remove old pos classes
                 els.webcamPreviewLayer.classList.remove('cam-pos-top-left', 'cam-pos-top-right', 'cam-pos-bottom-left', 'cam-pos-bottom-right');
-                // Add new
                 const pos = btn.dataset.pos;
                 els.webcamPreviewLayer.classList.add(`cam-pos-${pos}`);
                 camPosition = pos;
@@ -602,19 +558,16 @@
             }
         });
 
-        // --- STEP 1: Init Stream ---
         els.initBtn.onclick = async () => {
             const useMic = els.micToggle.checked;
             const useCam = els.camToggle.checked;
 
             try {
-                // Screen Capture (Required)
                 streams.display = await navigator.mediaDevices.getDisplayMedia({ 
                     video: { frameRate: 60, width: { ideal: 1920 }, height: { ideal: 1080 } }, 
                     audio: true 
                 });
 
-                // User Media (Mic/Cam) - Graceful Fallback
                 if (useMic || useCam) {
                     try {
                         streams.user = await navigator.mediaDevices.getUserMedia({ 
@@ -624,28 +577,21 @@
                     } catch (err) { 
                         console.warn("User media failed:", err);
                         showToast("Mikrofon/Kamera erişimi sağlanamadı. Sadece ekran kaydedilecek.");
-                        
-                        // Disable toggles visually to reflect state
                         if(useMic) els.micToggle.checked = false;
                         if(useCam) els.camToggle.checked = false;
-                        
-                        // Nullify stream so logic knows
                         streams.user = null;
                     }
                 }
 
-                // Setup UI based on available streams
                 if (streams.user) {
                     if (useMic && streams.user.getAudioTracks().length > 0) {
                         els.audioPreview.classList.remove('hidden');
                         els.audioPreview.classList.add('flex');
                         initAudioVisualizer(streams.user);
                     }
-                    
                     if (useCam && streams.user.getVideoTracks().length > 0) {
                         els.camControls.classList.remove('hidden');
                         els.camControls.classList.add('flex');
-                        
                         els.webcamPreviewLayer.classList.remove('hidden');
                         els.webcamLiveFeed.srcObject = streams.user;
                     } else {
@@ -662,11 +608,8 @@
             }
         };
 
-        // Audio Visualizer Logic
         function initAudioVisualizer(stream) {
-            // Check if stream actually has audio tracks
             if (stream.getAudioTracks().length === 0) return;
-
             audioContext = new AudioContext();
             const source = audioContext.createMediaStreamSource(stream);
             analyser = audioContext.createAnalyser();
@@ -689,7 +632,6 @@
             animationId = requestAnimationFrame(updateVisualizer);
         }
 
-        // --- Preview Logic ---
         function setupCropUI() {
             els.cropOverlay.classList.remove('hidden');
             els.cropSourceVideo.srcObject = streams.display;
@@ -697,16 +639,12 @@
             els.cropSourceVideo.onloadedmetadata = () => {
                 const vidW = els.cropSourceVideo.videoWidth;
                 const vidH = els.cropSourceVideo.videoHeight;
-                
-                // FORCE DEFAULT FULL SCREEN MODE
                 isCropMode = false;
                 updateCropBoxMode(); 
-                
                 cropState = { sx: 0, sy: 0, sw: vidW, sh: vidH };
             };
         }
 
-        // Draggable Logic
         let isDraggingBox = false;
         let isResizing = false;
         let resizeDir = '';
@@ -714,7 +652,6 @@
 
         els.cropContainer.addEventListener('mousedown', (e) => {
             if(!isCropMode) return; 
-            
             if (e.target.classList.contains('resize-handle')) {
                 isResizing = true;
                 resizeDir = e.target.dataset.dir;
@@ -734,13 +671,11 @@
         window.addEventListener('mousemove', (e) => {
             if(!isCropMode) return;
             const containerRect = els.cropContainer.getBoundingClientRect();
-            
             if (isDraggingBox) {
                 let dx = e.clientX - startX;
                 let dy = e.clientY - startY;
                 let newLeft = Math.max(0, Math.min(startLeft + dx, containerRect.width - els.cropBox.offsetWidth));
                 let newTop = Math.max(0, Math.min(startTop + dy, containerRect.height - els.cropBox.offsetHeight));
-                
                 els.cropBox.style.left = `${newLeft}px`;
                 els.cropBox.style.top = `${newTop}px`;
                 updateCropLabels();
@@ -759,20 +694,17 @@
             const vidW = els.cropSourceVideo.videoWidth;
             const containerW = els.cropSourceVideo.offsetWidth;
             const scale = vidW / containerW;
-
             cropState.sx = els.cropBox.offsetLeft * scale;
             cropState.sy = els.cropBox.offsetTop * scale;
             cropState.sw = els.cropBox.offsetWidth * scale;
             cropState.sh = els.cropBox.offsetHeight * scale;
         }
 
-        // --- STEP 2: Start Recording ---
         els.startRecordingBtn.onclick = () => {
             if (isRecording) {
                 stopRecording();
                 return;
             }
-
             els.countdownOverlay.classList.remove('hidden');
             let count = 3;
             els.countdownText.innerText = count;
@@ -789,23 +721,20 @@
 
         async function beginRecording() {
             isRecording = true;
+            els.keepAliveAudio.play().catch(() => {}); 
             els.statusBadge.innerText = "KAYITTA";
             els.statusBadge.className = "text-[10px] uppercase tracking-wider px-2 py-1 rounded border border-red-500 text-red-400 font-bold animate-pulse bg-red-900/20";
             
             els.recordingStatus.classList.remove('hidden');
             els.recordingStatus.classList.remove('ui-hidden'); 
-            
-            // Hide the Setup Toolbar
             els.cropToolbar.classList.add('hidden');
             
-            // Toggle Main Button State
             const btnText = els.startRecordingBtn.querySelector('.btn-text');
             if(btnText) btnText.innerText = "KAYDI DURDUR";
             els.startRecordingBtn.dataset.recording = "true";
             els.startRecordingBtn.classList.replace('bg-red-600', 'bg-slate-700');
             els.startRecordingBtn.onclick = stopRecording; 
 
-            // Visual Guide Mode
             els.cropBox.classList.add('recording-mode');
             document.querySelectorAll('.resize-handle').forEach(h => h.classList.add('hidden'));
             
@@ -823,27 +752,22 @@
             vScreen.srcObject = streams.display;
             await vScreen.play();
 
-            // Safety check for dimensions
             if (!cropState.sw || cropState.sw <= 0) cropState.sw = vScreen.videoWidth;
             if (!cropState.sh || cropState.sh <= 0) cropState.sh = vScreen.videoHeight;
 
             canvas.width = cropState.sw;
             canvas.height = cropState.sh;
 
-            // Audio Mixing
             const dest = audioContext ? audioContext.createMediaStreamDestination() : new AudioContext().createMediaStreamDestination();
             const ac = audioContext || new AudioContext(); 
             
             if(streams.display.getAudioTracks().length) ac.createMediaStreamSource(streams.display).connect(dest);
-            
-            // Check if user stream exists AND has audio tracks before trying to mix
             if(streams.user && streams.user.getAudioTracks().length > 0) {
                 const ms = ac.createMediaStreamSource(streams.user);
                 ms.connect(ac.createGain()).connect(dest);
             }
 
             const useCam = els.camToggle.checked;
-            // Check if user stream exists AND has video tracks
             const hasUserVideo = streams.user && streams.user.getVideoTracks().length > 0;
 
             if (useCam && hasUserVideo) {
@@ -854,38 +778,26 @@
             let isDrawingLoop = true;
             function draw() {
                 if(!isDrawingLoop) return;
-                
-                // --- FIX: Black Background Fill (Fixes dark video on download) ---
                 ctx.fillStyle = '#000';
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(vScreen, cropState.sx, cropState.sy, cropState.sw, cropState.sh, 0, 0, canvas.width, canvas.height);
 
-                // Draw Crop Area
-                ctx.drawImage(vScreen, 
-                    cropState.sx, cropState.sy, cropState.sw, cropState.sh, 
-                    0, 0, canvas.width, canvas.height
-                );
-
-                // --- Webcam Layer ---
                 if (useCam && hasUserVideo) {
                     const size = Math.min(canvas.width, canvas.height) * 0.25; 
                     const m = 30;
                     let x, y;
-
-                    // Calculate Cam Position
                     if (camPosition === 'top-left') { x = m; y = m; }
                     else if (camPosition === 'top-right') { x = canvas.width - size - m; y = m; }
                     else if (camPosition === 'bottom-left') { x = m; y = canvas.height - size - m; }
-                    else { x = canvas.width - size - m; y = canvas.height - size - m; } // bottom-right
+                    else { x = canvas.width - size - m; y = canvas.height - size - m; }
 
                     ctx.save();
                     ctx.beginPath();
-                    
                     if (camShape === 'circle') {
                         ctx.arc(x+size/2, y+size/2, size/2, 0, Math.PI*2);
                     } else {
                         ctx.roundRect(x, y, size, size, 20); 
                     }
-                    
                     ctx.clip();
                     ctx.drawImage(vCam, x, y, size, size);
                     ctx.strokeStyle = "white"; ctx.lineWidth = 4; ctx.stroke();
@@ -901,26 +813,25 @@
             let mime = 'video/mp4';
             if(!MediaRecorder.isTypeSupported(mime)) mime = 'video/webm;codecs=vp9';
 
-            // OPTIMIZED BITRATE FOR LONG RECORDINGS
             mediaRecorder = new MediaRecorder(finalStream, { 
                 mimeType: mime,
-                videoBitsPerSecond: 3000000 // 3 Mbps Optimized
+                videoBitsPerSecond: 3000000 
             });
             
             recordedChunks = [];
             mediaRecorder.ondataavailable = e => { if(e.data.size>0) recordedChunks.push(e.data); };
             mediaRecorder.onstop = () => {
                 isDrawingLoop = false;
+                els.keepAliveAudio.pause();
                 if (audioContext) audioContext.close();
                 if (animationId) cancelAnimationFrame(animationId);
-                
                 streams.display.getTracks().forEach(t=>t.stop());
                 if(streams.user) streams.user.getTracks().forEach(t=>t.stop());
                 finalize();
             };
             
             streams.display.getVideoTracks()[0].onended = () => stopRecording();
-            mediaRecorder.start();
+            mediaRecorder.start(1000); 
             
             totalSeconds = 0;
             clearInterval(timerInt);
@@ -936,14 +847,12 @@
             }, 1000);
         }
 
-        // --- Controls ---
         function stopRecording() {
             if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
         }
 
         function togglePause() {
             if (!mediaRecorder || mediaRecorder.state === 'inactive') return;
-            
             if(mediaRecorder.state === "recording") {
                 mediaRecorder.pause(); isPaused = true;
                 els.pauseBtn.innerHTML = '<i class="fa-solid fa-play text-xs"></i>';
@@ -963,7 +872,6 @@
         els.stopBtn.onclick = stopRecording;
         els.pauseBtn.onclick = togglePause;
 
-        // Keyboard Shortcuts
         document.addEventListener('keydown', (e) => {
             if (!isRecording) return;
             if (e.key === 'F9') {
@@ -979,27 +887,19 @@
             isRecording = false;
             clearInterval(timerInt);
             updatePageTitle();
-            
-            // UI Temizliği
             els.cropToolbar.classList.remove('hidden'); 
             els.recordingStatus.classList.add('hidden');
             els.cropOverlay.classList.add('hidden');
-            
-            // "Hazırlanıyor" Ekranını Göster
             els.processingOverlay.classList.remove('hidden');
             
-            // Dynamic Waiting time based on recording length
-            // Base 1s, +50ms per recorded second. Max cap 5s.
             const dynamicWait = Math.min(5000, 1000 + (totalSeconds * 50));
 
-            // İşlemi asenkron yaparak UI'ın donmasını engelle ve kullanıcıya bilgi ver
             setTimeout(() => {
                 try {
                     const blob = new Blob(recordedChunks, { type: mediaRecorder.mimeType });
                     recordedBlobUrl = URL.createObjectURL(blob);
                     els.previewVideo.src = recordedBlobUrl;
                     
-                    // Video yüklendiğinde (metadata) işlem tamamlandı say
                     els.previewVideo.onloadeddata = () => {
                         els.processingOverlay.classList.add('hidden');
                         els.resultPanel.classList.remove('hidden');
@@ -1007,18 +907,16 @@
                         showToast("Video başarıyla hazırlandı!");
                     };
                     
-                    // Fallback: Eğer onloadeddata tetiklenmezse (bazen blob kaynaklarında olabilir)
-                    // manuel süre aşımı ile aç.
                     setTimeout(() => {
                         if (!els.resultPanel.classList.contains('hidden')) return;
                         els.processingOverlay.classList.add('hidden');
                         els.resultPanel.classList.remove('hidden');
                         els.statusBadge.innerText = "TAMAMLANDI";
-                    }, 1000);
+                    }, 2000);
 
                 } catch (e) {
-                    console.error("Blob oluşturma hatası:", e);
-                    showToast("Video oluşturulurken bir hata oluştu.");
+                    console.error("Blob error:", e);
+                    showToast("Hata oluştu.");
                     els.processingOverlay.classList.add('hidden');
                 }
             }, dynamicWait);
