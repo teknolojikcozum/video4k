@@ -210,7 +210,6 @@
             </a>
 
             <div id="keyboard-hint" class="hidden md:flex gap-2 text-[10px] text-slate-500 font-mono items-center">
-                <!-- F8 kaldırıldı -->
                 <div class="flex items-center gap-1 bg-white/5 px-2 py-1 rounded border border-white/5">
                     <kbd class="font-sans">F9</kbd> Duraklat
                 </div>
@@ -480,7 +479,7 @@
             cropLabel: document.getElementById('crop-label'),
             toast: document.getElementById('toast'),
             toastMsg: document.getElementById('toast-msg'),
-            processingOverlay: document.getElementById('processing-overlay'), // NEW
+            processingOverlay: document.getElementById('processing-overlay'),
             
             initBtn: document.getElementById('init-btn'),
             startRecordingBtn: document.getElementById('start-recording-btn'),
@@ -607,47 +606,65 @@
             const useCam = els.camToggle.checked;
 
             try {
+                // Screen Capture (Required)
                 streams.display = await navigator.mediaDevices.getDisplayMedia({ 
                     video: { frameRate: 60, width: { ideal: 1920 }, height: { ideal: 1080 } }, 
                     audio: true 
                 });
 
+                // User Media (Mic/Cam) - Graceful Fallback
                 if (useMic || useCam) {
                     try {
                         streams.user = await navigator.mediaDevices.getUserMedia({ 
                             audio: useMic, 
                             video: useCam ? { width: 320, height: 240 } : false 
                         });
-                    } catch (err) { alert("Medya izni alınamadı."); }
+                    } catch (err) { 
+                        console.warn("User media failed:", err);
+                        showToast("Mikrofon/Kamera erişimi sağlanamadı. Sadece ekran kaydedilecek.");
+                        
+                        // Disable toggles visually to reflect state
+                        if(useMic) els.micToggle.checked = false;
+                        if(useCam) els.camToggle.checked = false;
+                        
+                        // Nullify stream so logic knows
+                        streams.user = null;
+                    }
                 }
 
-                if (useMic && streams.user && streams.user.getAudioTracks().length > 0) {
-                    els.audioPreview.classList.remove('hidden');
-                    els.audioPreview.classList.add('flex');
-                    initAudioVisualizer(streams.user);
-                }
-                
-                if (useCam && streams.user && streams.user.getVideoTracks().length > 0) {
-                    els.camControls.classList.remove('hidden');
-                    els.camControls.classList.add('flex');
+                // Setup UI based on available streams
+                if (streams.user) {
+                    if (useMic && streams.user.getAudioTracks().length > 0) {
+                        els.audioPreview.classList.remove('hidden');
+                        els.audioPreview.classList.add('flex');
+                        initAudioVisualizer(streams.user);
+                    }
                     
-                    els.webcamPreviewLayer.classList.remove('hidden');
-                    els.webcamLiveFeed.srcObject = streams.user;
-                } else {
-                    els.webcamPreviewLayer.classList.add('hidden');
+                    if (useCam && streams.user.getVideoTracks().length > 0) {
+                        els.camControls.classList.remove('hidden');
+                        els.camControls.classList.add('flex');
+                        
+                        els.webcamPreviewLayer.classList.remove('hidden');
+                        els.webcamLiveFeed.srcObject = streams.user;
+                    } else {
+                        els.webcamPreviewLayer.classList.add('hidden');
+                    }
                 }
 
                 els.setupPanel.classList.add('hidden');
                 setupCropUI();
 
             } catch (err) {
-                console.warn(err);
+                console.warn("Display media cancelled or failed:", err);
                 els.setupPanel.classList.remove('hidden');
             }
         };
 
         // Audio Visualizer Logic
         function initAudioVisualizer(stream) {
+            // Check if stream actually has audio tracks
+            if (stream.getAudioTracks().length === 0) return;
+
             audioContext = new AudioContext();
             const source = audioContext.createMediaStreamSource(stream);
             analyser = audioContext.createAnalyser();
@@ -817,13 +834,17 @@
             
             if(streams.display.getAudioTracks().length) ac.createMediaStreamSource(streams.display).connect(dest);
             
-            if(streams.user && streams.user.getAudioTracks().length) {
+            // Check if user stream exists AND has audio tracks before trying to mix
+            if(streams.user && streams.user.getAudioTracks().length > 0) {
                 const ms = ac.createMediaStreamSource(streams.user);
                 ms.connect(ac.createGain()).connect(dest);
             }
 
             const useCam = els.camToggle.checked;
-            if (useCam && streams.user) {
+            // Check if user stream exists AND has video tracks
+            const hasUserVideo = streams.user && streams.user.getVideoTracks().length > 0;
+
+            if (useCam && hasUserVideo) {
                 vCam.srcObject = streams.user;
                 await vCam.play();
             }
@@ -843,7 +864,7 @@
                 );
 
                 // --- Webcam Layer ---
-                if (useCam && streams.user) {
+                if (useCam && hasUserVideo) {
                     const size = Math.min(canvas.width, canvas.height) * 0.25; 
                     const m = 30;
                     let x, y;
@@ -959,6 +980,10 @@
             // "Hazırlanıyor" Ekranını Göster
             els.processingOverlay.classList.remove('hidden');
             
+            // Dynamic Waiting time based on recording length
+            // Base 1s, +50ms per recorded second. Max cap 5s.
+            const dynamicWait = Math.min(5000, 1000 + (totalSeconds * 50));
+
             // İşlemi asenkron yaparak UI'ın donmasını engelle ve kullanıcıya bilgi ver
             setTimeout(() => {
                 try {
@@ -988,7 +1013,7 @@
                     showToast("Video oluşturulurken bir hata oluştu.");
                     els.processingOverlay.classList.add('hidden');
                 }
-            }, 1000); // En az 1 saniye bekleme efekti
+            }, dynamicWait);
         }
 
         function downloadVideo(ext) {
